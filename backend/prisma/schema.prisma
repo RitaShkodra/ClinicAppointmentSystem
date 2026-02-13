@@ -28,10 +28,13 @@ model Patient {
 }
 
 model Doctor {
-  id             Int      @id @default(autoincrement())
-  name           String
-  specialization String
-  createdAt      DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  firstName       String
+  lastName        String
+  specialization  String
+  email           String?  @unique
+  phone           String?
+  createdAt       DateTime @default(now())
 
   appointments Appointment[]
 }
