@@ -22,7 +22,9 @@ export const registerUser = async ({ name, email, password }) => {
       name,
       email,
       password: hashedPassword,
-      role: "STAFF",
+      // role: "STAFF",
+      role: "ADMIN",
+
     },
   });
 

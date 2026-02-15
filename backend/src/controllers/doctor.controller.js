@@ -77,8 +77,15 @@ export const remove = async (req, res) => {
     await deleteDoctor(req.params.id);
     res.json({ message: "Doctor deleted successfully" });
   } catch (error) {
+    if (error.code === "P2003") {
+      return res.status(400).json({
+        message: "Cannot delete doctor with existing appointments",
+      });
+    }
+
     res.status(400).json({
       message: error.message,
     });
   }
 };
+

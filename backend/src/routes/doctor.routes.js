@@ -7,6 +7,8 @@ import {
   remove,
 } from "../controllers/doctor.controller.js";
 import { authMiddleware } from "../middlewares/auth.middleware.js";
+import { authorizeRoles } from "../middlewares/role.middleware.js";
+
 
 const router = express.Router();
 
@@ -14,6 +16,7 @@ router.post("/", authMiddleware, create);
 router.get("/", authMiddleware, getAll);
 router.get("/:id", authMiddleware, getOne);
 router.put("/:id", authMiddleware, update);
-router.delete("/:id", authMiddleware, remove);
+router.delete("/:id", authMiddleware, authorizeRoles("ADMIN"), remove);
+
 
 export default router;
