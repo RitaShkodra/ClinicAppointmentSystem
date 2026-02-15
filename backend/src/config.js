@@ -9,10 +9,15 @@ dotenv.config({
   path: path.resolve(__dirname, "../.env"),
 });
 
-if (!process.env.JWT_SECRET) {
-  throw new Error("JWT_SECRET is not defined in .env");
-}
+
 
 export const config = {
   jwtSecret: process.env.JWT_SECRET,
+  jwtRefreshSecret: process.env.JWT_REFRESH_SECRET,
 };
+if (!process.env.JWT_SECRET) {
+  throw new Error("JWT_SECRET is not defined in .env");
+}
+if (!config.jwtRefreshSecret) {
+  throw new Error("JWT_REFRESH_SECRET is not defined in .env");
+}
