@@ -6,6 +6,7 @@ import authRoutes from "./routes/auth.routes.js";
 import patientRoutes from "./routes/patient.routes.js";
 import doctorRoutes from "./routes/doctor.routes.js";
 import appointmentRoutes from "./routes/appointment.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 
 
 
@@ -20,6 +21,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/patients", patientRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/appointments", appointmentRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+
 
 
 export default app; 
