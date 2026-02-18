@@ -3,6 +3,8 @@ import Login from "./pages/login";
 import Dashboard from "./pages/dashboard";
 import ProtectedRoute from "./components/protectedroute";
 import Layout from "./components/layout";
+import Patients from "./pages/patients";
+
 
 function App() {
   return (
@@ -21,15 +23,16 @@ function App() {
       />
 
       <Route
-        path="/patients"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <div>Patients Page</div>
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
+  path="/patients"
+  element={
+    <ProtectedRoute>
+      <Layout>
+        <Patients />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
+
 
       <Route
         path="/doctors"
