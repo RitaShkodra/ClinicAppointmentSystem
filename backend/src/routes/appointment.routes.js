@@ -5,21 +5,50 @@ import {
   updateStatus,
   remove,
 } from "../controllers/appointment.controller.js";
+
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { authorizeRoles } from "../middlewares/role.middleware.js";
 
-
 const router = express.Router();
 
-router.post("/", authMiddleware, create);
-router.get("/", authMiddleware, getAll);
-router.put(
+/*
+  CREATE → STAFF + ADMIN
+*/
+router.post(
+  "/",
+  authMiddleware,
+  authorizeRoles("ADMIN", "STAFF"),
+  create
+);
+
+/*
+  GET ALL → STAFF + ADMIN
+*/
+router.get(
+  "/",
+  authMiddleware,
+  authorizeRoles("ADMIN", "STAFF"),
+  getAll
+);
+
+/*
+  UPDATE STATUS → STAFF + ADMIN
+*/
+router.patch(
   "/:id/status",
   authMiddleware,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "STAFF"),
   updateStatus
 );
 
-router.delete("/:id", authMiddleware, remove);
+/*
+  DELETE → ADMIN ONLY
+*/
+router.delete(
+  "/:id",
+  authMiddleware,
+  authorizeRoles("ADMIN"),
+  remove
+);
 
 export default router;

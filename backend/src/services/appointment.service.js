@@ -1,11 +1,27 @@
 import prisma from "../prisma.js";
 
+/*
+  STATUS VALUES:
+  - PENDING
+  - APPROVED
+  - CANCELLED
+  - COMPLETED
+*/
+
 export const createAppointment = async ({
   dateTime,
   notes,
   patientId,
   doctorId,
 }) => {
+  const appointmentDate = new Date(dateTime);
+
+  // 1️⃣ Prevent booking in the past
+  if (appointmentDate < new Date()) {
+    throw new Error("Cannot book appointment in the past");
+  }
+
+  // 2️⃣ Check patient exists
   const patient = await prisma.patient.findUnique({
     where: { id: Number(patientId) },
   });
@@ -14,7 +30,7 @@ export const createAppointment = async ({
     throw new Error("Patient not found");
   }
 
- 
+  // 3️⃣ Check doctor exists
   const doctor = await prisma.doctor.findUnique({
     where: { id: Number(doctorId) },
   });
@@ -23,10 +39,12 @@ export const createAppointment = async ({
     throw new Error("Doctor not found");
   }
 
+  // 4️⃣ Prevent double booking (ignore CANCELLED)
   const existingAppointment = await prisma.appointment.findFirst({
     where: {
       doctorId: Number(doctorId),
-      dateTime: new Date(dateTime),
+      dateTime: appointmentDate,
+      status: { not: "CANCELLED" },
     },
   });
 
@@ -36,10 +54,11 @@ export const createAppointment = async ({
 
   return await prisma.appointment.create({
     data: {
-      dateTime: new Date(dateTime),
+      dateTime: appointmentDate,
       notes,
       patientId: Number(patientId),
       doctorId: Number(doctorId),
+      status: "PENDING",
     },
     include: {
       patient: true,
@@ -58,14 +77,44 @@ export const getAllAppointments = async () => {
   });
 };
 
-export const updateAppointmentStatus = async (id, status) => {
+/*
+  Controlled Status Updates
+*/
+export const updateAppointmentStatus = async (id, newStatus) => {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!appointment) {
+    throw new Error("Appointment not found");
+  }
+
+  const allowedStatuses = ["PENDING", "APPROVED", "CANCELLED", "COMPLETED"];
+
+  if (!allowedStatuses.includes(newStatus)) {
+    throw new Error("Invalid appointment status");
+  }
+
+  // Optional: prevent weird transitions
+  if (appointment.status === "CANCELLED") {
+    throw new Error("Cannot modify a cancelled appointment");
+  }
+
   return await prisma.appointment.update({
     where: { id: Number(id) },
-    data: { status },
+    data: { status: newStatus },
   });
 };
 
 export const deleteAppointment = async (id) => {
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!appointment) {
+    throw new Error("Appointment not found");
+  }
+
   return await prisma.appointment.delete({
     where: { id: Number(id) },
   });
