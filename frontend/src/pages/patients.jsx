@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import axios from "axios";
+import { AuthContext } from "../context/authcontext";
 
 function Patients() {
+  const { user } = useContext(AuthContext);
+
   const [patients, setPatients] = useState([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
@@ -18,9 +21,12 @@ function Patients() {
 
   const fetchPatients = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/patients", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await axios.get(
+        "http://localhost:5000/api/patients",
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
       setPatients(res.data);
     } catch (err) {
       console.error("Failed to fetch patients");
@@ -46,17 +52,13 @@ function Patients() {
         await axios.put(
           `http://localhost:5000/api/patients/${editingPatient.id}`,
           form,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
       } else {
         await axios.post(
           "http://localhost:5000/api/patients",
           form,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
+          { headers: { Authorization: `Bearer ${token}` } }
         );
       }
 
@@ -79,9 +81,7 @@ function Patients() {
     try {
       await axios.delete(
         `http://localhost:5000/api/patients/${id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       fetchPatients();
     } catch (err) {
@@ -89,7 +89,6 @@ function Patients() {
     }
   };
 
-  // 🔎 FILTER LOGIC
   const filteredPatients = patients.filter((patient) => {
     const fullName =
       `${patient.firstName} ${patient.lastName}`.toLowerCase();
@@ -104,15 +103,15 @@ function Patients() {
   });
 
   return (
-    <div className="p-6">
+    <div className="p-8">
 
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">
+          <h1 className="text-2xl font-semibold text-gray-800">
             Patients
           </h1>
-          <div className="w-16 h-1 bg-teal-500 mt-2 rounded"></div>
+          <div className="w-12 h-0.5 bg-teal-500 mt-2 rounded"></div>
         </div>
 
         <button
@@ -120,61 +119,68 @@ function Patients() {
             setFormOpen(!formOpen);
             setEditingPatient(null);
           }}
-          className="bg-teal-500 text-white px-5 py-2 rounded-lg hover:bg-teal-600 transition"
+          className="bg-teal-500 text-white px-4 py-2 text-sm rounded-md hover:bg-teal-600 transition"
         >
           {formOpen ? "Close" : "+ Add Patient"}
         </button>
       </div>
 
-      {/* INLINE FORM */}
+      {/* FORM */}
       {formOpen && (
-        <div className="bg-white p-6 rounded-2xl shadow-md mb-6">
-          <h2 className="text-lg font-semibold mb-4 text-gray-700">
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8 max-w-3xl">
+
+          <h2 className="text-lg font-medium text-gray-700 mb-6">
             {editingPatient ? "Edit Patient" : "Add New Patient"}
           </h2>
 
-          <form
-            onSubmit={handleSubmit}
-            className="grid grid-cols-2 gap-4"
-          >
-            <input
-              type="text"
-              name="firstName"
-              placeholder="First Name"
-              value={form.firstName}
-              onChange={handleChange}
-              className="border p-2 rounded-lg focus:ring-2 focus:ring-teal-400 outline-none"
-              required
-            />
+          <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-5">
 
-            <input
-              type="text"
-              name="lastName"
-              placeholder="Last Name"
-              value={form.lastName}
-              onChange={handleChange}
-              className="border p-2 rounded-lg focus:ring-2 focus:ring-teal-400 outline-none"
-              required
-            />
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-400 mb-1">First Name</label>
+              <input
+                type="text"
+                name="firstName"
+                value={form.firstName}
+                onChange={handleChange}
+                className="bg-gray-50 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none transition"
+                required
+              />
+            </div>
 
-            <input
-              type="text"
-              name="phone"
-              placeholder="Phone"
-              value={form.phone}
-              onChange={handleChange}
-              className="border p-2 rounded-lg focus:ring-2 focus:ring-teal-400 outline-none"
-              required
-            />
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-400 mb-1">Last Name</label>
+              <input
+                type="text"
+                name="lastName"
+                value={form.lastName}
+                onChange={handleChange}
+                className="bg-gray-50 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none transition"
+                required
+              />
+            </div>
 
-            <input
-              type="email"
-              name="email"
-              placeholder="Email"
-              value={form.email}
-              onChange={handleChange}
-              className="border p-2 rounded-lg focus:ring-2 focus:ring-teal-400 outline-none"
-            />
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-400 mb-1">Phone</label>
+              <input
+                type="text"
+                name="phone"
+                value={form.phone}
+                onChange={handleChange}
+                className="bg-gray-50 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none transition"
+                required
+              />
+            </div>
+
+            <div className="flex flex-col">
+              <label className="text-xs text-gray-400 mb-1">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                className="bg-gray-50 rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none transition"
+              />
+            </div>
 
             <div className="col-span-2 flex justify-end gap-3 mt-4">
               <button
@@ -183,101 +189,107 @@ function Patients() {
                   setFormOpen(false);
                   setEditingPatient(null);
                 }}
-                className="px-4 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+                className="px-4 py-2 text-sm rounded-md text-gray-600 hover:text-gray-800 transition"
               >
                 Cancel
               </button>
 
               <button
                 type="submit"
-                className="px-4 py-2 rounded-lg bg-teal-500 text-white hover:bg-teal-600"
+                className="px-5 py-2 text-sm rounded-md bg-teal-500 text-white hover:bg-teal-600 transition"
               >
-                Save
+                {editingPatient ? "Update" : "Save"}
               </button>
             </div>
+
           </form>
         </div>
       )}
 
-      {/* SEARCH BAR */}
-      <div className="flex justify-between items-center mb-4">
+      {/* SEARCH */}
+      <div className="flex justify-between items-center mb-6">
         <div className="relative w-72">
           <input
             type="text"
             placeholder="Search patients..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-400"
+            className="w-full pl-9 pr-4 py-2 bg-gray-50 rounded-md text-sm focus:ring-2 focus:ring-teal-400 focus:outline-none transition"
           />
-          <span className="absolute left-3 top-2.5 text-gray-400">
+          <span className="absolute left-3 top-2 text-gray-400 text-sm">
             🔎
           </span>
         </div>
 
-        <p className="text-sm text-gray-500">
-          Showing {filteredPatients.length} of {patients.length} patients
+        <p className="text-sm text-gray-400">
+          Showing {filteredPatients.length} of {patients.length}
         </p>
       </div>
 
       {/* TABLE */}
-      <div className="bg-white rounded-2xl shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-teal-50">
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-gray-500">
             <tr>
-              <th className="p-4 text-left text-gray-600">First Name</th>
-              <th className="p-4 text-left text-gray-600">Last Name</th>
-              <th className="p-4 text-left text-gray-600">Phone</th>
-              <th className="p-4 text-left text-gray-600">Email</th>
-              <th className="p-4 text-left text-gray-600">Actions</th>
+              <th className="px-6 py-3 text-left font-medium">First Name</th>
+              <th className="px-6 py-3 text-left font-medium">Last Name</th>
+              <th className="px-6 py-3 text-left font-medium">Phone</th>
+              <th className="px-6 py-3 text-left font-medium">Email</th>
+              <th className="px-6 py-3 text-left font-medium">Actions</th>
             </tr>
           </thead>
-          <tbody>
-            {filteredPatients.map((patient) => (
-              <tr
-                key={patient.id}
-                className="border-t hover:bg-teal-50 transition"
-              >
-                <td className="p-4">{patient.firstName}</td>
-                <td className="p-4">{patient.lastName}</td>
-                <td className="p-4">{patient.phone}</td>
-                <td className="p-4">{patient.email}</td>
-                <td className="p-4 flex gap-3">
-                  <button
-                    onClick={() => {
-                      setEditingPatient(patient);
-                      setForm({
-                        firstName: patient.firstName,
-                        lastName: patient.lastName,
-                        phone: patient.phone,
-                        email: patient.email || "",
-                      });
-                      setFormOpen(true);
-                    }}
-                    className="bg-teal-100 text-teal-700 px-3 py-1 rounded hover:bg-teal-200 transition"
-                  >
-                    Edit
-                  </button>
 
-                  <button
-                    onClick={() => handleDelete(patient.id)}
-                    className="bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 transition"
-                  >
-                    Delete
-                  </button>
-                </td>
+          <tbody className="divide-y divide-gray-100">
+            {filteredPatients.map((patient) => (
+              <tr key={patient.id} className="hover:bg-gray-50 transition">
+                <td className="px-6 py-4">{patient.firstName}</td>
+                <td className="px-6 py-4">{patient.lastName}</td>
+                <td className="px-6 py-4">{patient.phone}</td>
+                <td className="px-6 py-4">{patient.email}</td>
+               <td className="px-6 py-4 flex gap-3">
+
+  <button
+    onClick={() => {
+      setEditingPatient(patient);
+      setForm({
+        firstName: patient.firstName,
+        lastName: patient.lastName,
+        phone: patient.phone,
+        email: patient.email || "",
+      });
+      setFormOpen(true);
+    }}
+    className="bg-teal-50 text-teal-700 px-3 py-1.5 rounded-md text-xs font-medium hover:bg-teal-100 transition"
+  >
+    Edit
+  </button>
+
+  {user?.role === "ADMIN" && (
+    <button
+      onClick={() => handleDelete(patient.id)}
+      className="bg-red-50 text-red-600 px-3 py-1.5 rounded-md text-xs font-medium hover:bg-red-100 transition"
+    >
+      Delete
+    </button>
+  )}
+
+</td>
+
               </tr>
             ))}
 
             {filteredPatients.length === 0 && (
               <tr>
-                <td colSpan="5" className="text-center p-8 text-gray-400">
+                <td colSpan="5" className="text-center py-8 text-gray-400">
                   No patients found
                 </td>
               </tr>
             )}
           </tbody>
+
         </table>
       </div>
+
     </div>
   );
 }
