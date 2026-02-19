@@ -4,7 +4,7 @@ import Dashboard from "./pages/dashboard";
 import ProtectedRoute from "./components/protectedroute";
 import Layout from "./components/layout";
 import Patients from "./pages/patients";
-// import Doctors from "./pages/doctors";
+import Doctors from "./pages/doctors";
 
 
 function App() {
@@ -26,7 +26,7 @@ function App() {
       <Route
   path="/patients"
   element={
-    <ProtectedRoute>
+    <ProtectedRoute allowedRoles={["ADMIN", "STAFF"]}>
       <Layout>
         <Patients />
       </Layout>
@@ -34,27 +34,28 @@ function App() {
   }
 />
 
-
-      {/* <Route
+<Route
   path="/doctors"
   element={
     <ProtectedRoute allowedRoles={["ADMIN"]}>
-      <Doctors />
+      <Layout>
+        <Doctors />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
+
+{/* <Route
+  path="/appointments"
+  element={
+    <ProtectedRoute allowedRoles={["ADMIN", "STAFF"]}>
+      <Layout>
+        <Appointments />
+      </Layout>
     </ProtectedRoute>
   }
 /> */}
 
-
-      <Route
-        path="/appointments"
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <div>Appointments Page</div>
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
     </Routes>
   );
 }

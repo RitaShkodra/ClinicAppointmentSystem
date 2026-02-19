@@ -58,7 +58,8 @@ export const loginUser = async ({ email, password }) => {
       role: user.role,
     },
     config.jwtSecret,
-    { expiresIn: "15m" }
+    // { expiresIn: "15m" }
+    { expiresIn: "2h" }
   );
 
 
