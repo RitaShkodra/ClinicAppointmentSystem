@@ -35,6 +35,7 @@ model Doctor {
   specialization  String
   email           String?  @unique
   phone           String?
+  availability  String?    
   createdAt       DateTime @default(now())
 
   appointments Appointment[]

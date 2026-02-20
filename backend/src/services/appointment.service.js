@@ -16,12 +16,16 @@ export const createAppointment = async ({
 }) => {
   const appointmentDate = new Date(dateTime);
 
-  // 1️⃣ Prevent booking in the past
+  /* =========================
+     1️⃣ Prevent booking in past
+  ========================== */
   if (appointmentDate < new Date()) {
     throw new Error("Cannot book appointment in the past");
   }
 
-  // 2️⃣ Check patient exists
+  /* =========================
+     2️⃣ Validate Patient
+  ========================== */
   const patient = await prisma.patient.findUnique({
     where: { id: Number(patientId) },
   });
@@ -30,7 +34,9 @@ export const createAppointment = async ({
     throw new Error("Patient not found");
   }
 
-  // 3️⃣ Check doctor exists
+  /* =========================
+     3️⃣ Validate Doctor
+  ========================== */
   const doctor = await prisma.doctor.findUnique({
     where: { id: Number(doctorId) },
   });
@@ -39,23 +45,66 @@ export const createAppointment = async ({
     throw new Error("Doctor not found");
   }
 
-  // 4️⃣ Prevent double booking (ignore CANCELLED)
-  const existingAppointment = await prisma.appointment.findFirst({
+  /* =========================
+     4️⃣ Create 30-Minute Window
+  ========================== */
+
+  const windowStart = new Date(appointmentDate);
+  windowStart.setMinutes(windowStart.getMinutes() - 30);
+
+  const windowEnd = new Date(appointmentDate);
+  windowEnd.setMinutes(windowEnd.getMinutes() + 30);
+
+  /* =========================
+     5️⃣ Prevent Doctor Double Booking
+  ========================== */
+
+  const doctorConflict = await prisma.appointment.findFirst({
     where: {
       doctorId: Number(doctorId),
-      dateTime: appointmentDate,
       status: { not: "CANCELLED" },
+      dateTime: {
+        gte: windowStart,
+        lt: windowEnd,
+      },
     },
   });
 
-  if (existingAppointment) {
-    throw new Error("Doctor already has an appointment at this time");
+  if (doctorConflict) {
+    throw new Error(
+      "Doctor has another appointment within 30 minutes of this time"
+    );
   }
+
+  /* =========================
+     6️⃣ Prevent Patient Double Booking
+  ========================== */
+
+  const patientConflict = await prisma.appointment.findFirst({
+    where: {
+      patientId: Number(patientId),
+      status: { not: "CANCELLED" },
+      dateTime: {
+        gte: windowStart,
+        lt: windowEnd,
+      },
+    },
+  });
+
+  if (patientConflict) {
+    throw new Error(
+      "Patient already has another appointment within 30 minutes of this time"
+    );
+  }
+
+  /* =========================
+     7️⃣ Create Appointment
+  ========================== */
 
   return await prisma.appointment.create({
     data: {
       dateTime: appointmentDate,
-      notes,
+      notes: notes || null,
       patientId: Number(patientId),
       doctorId: Number(doctorId),
       status: "PENDING",

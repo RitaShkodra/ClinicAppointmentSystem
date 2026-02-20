@@ -9,7 +9,11 @@ import SearchableSelect from "../components/searchableselect";
 function Appointments() {
   const { user } = useContext(AuthContext);
 
+  const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  
 
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -20,86 +24,224 @@ function Appointments() {
   const [form, setForm] = useState({
     patientId: "",
     doctorId: "",
-    dateTime: "",
+    date: "",
+    time: "",
     notes: "",
   });
+  const resetForm = () => {
+  setForm({
+    patientId: "",
+    doctorId: "",
+    date: "",
+    time: "",
+    notes: "",
+  });
+  setError("");
+};
 
   const token = localStorage.getItem("accessToken");
 
-  /* ================= FETCH DATA ================= */
-
-  const fetchAppointments = async () => {
-    const res = await axios.get(
-      "http://localhost:5000/api/appointments",
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    setAppointments(res.data);
-  };
-
-  const fetchPatients = async () => {
-    const res = await axios.get(
-      "http://localhost:5000/api/patients",
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    setPatients(res.data);
-  };
-
-  const fetchDoctors = async () => {
-    const res = await axios.get(
-      "http://localhost:5000/api/doctors",
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    setDoctors(res.data);
-  };
-
   useEffect(() => {
-    fetchAppointments();
-    fetchPatients();
-    fetchDoctors();
+    const fetchData = async () => {
+      const [apptRes, patientRes, doctorRes] = await Promise.all([
+        axios.get("http://localhost:5000/api/appointments", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get("http://localhost:5000/api/patients", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        axios.get("http://localhost:5000/api/doctors", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      setAppointments(apptRes.data);
+      setPatients(patientRes.data);
+      setDoctors(doctorRes.data);
+    };
+
+    fetchData();
   }, []);
 
-  /* ================= CREATE ================= */
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(""), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  const getWeekdayKey = (dateString) => {
+  return new Date(dateString)
+    .toLocaleDateString("en-US", { weekday: "long" })
+    .toLowerCase();
+};
+
+  const generateTimeSlots = () => {
+    if (!form.doctorId || !form.date) return [];
+
+    const selectedDoctor = doctors.find(
+      (d) => d.id === Number(form.doctorId)
+    );
+
+    if (!selectedDoctor?.availability) return [];
+
+    let parsedAvailability;
+
+    if (typeof selectedDoctor.availability === "string") {
+      try {
+        parsedAvailability = JSON.parse(selectedDoctor.availability);
+      } catch {
+        return [];
+      }
+    } else {
+      parsedAvailability = selectedDoctor.availability;
+    }
+
+    const weekday = getWeekdayKey(form.date);
+   const dayAvailability =
+  parsedAvailability[weekday] ||
+  parsedAvailability[weekday.toUpperCase()] ||
+  parsedAvailability[
+    weekday.charAt(0).toUpperCase() + weekday.slice(1)
+  ];
+
+    if (!dayAvailability) return [];
+
+    const { start, end } = dayAvailability;
+
+    const slots = [];
+    const startDate = new Date(`${form.date}T${start}`);
+    const endDate = new Date(`${form.date}T${end}`);
+
+    while (startDate < endDate) {
+      const hours = startDate.getHours().toString().padStart(2, "0");
+      const mins = startDate.getMinutes().toString().padStart(2, "0");
+      slots.push(`${hours}:${mins}`);
+      startDate.setMinutes(startDate.getMinutes() + 30);
+    }
+
+    return slots;
+  };
+
+  const timeSlots = useMemo(() => {
+    return generateTimeSlots();
+  }, [form.doctorId, form.date, doctors]);
+
+  const isDoctorOffDay =
+    form.doctorId && form.date && timeSlots.length === 0;
+
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, time: "" }));
+  }, [form.doctorId, form.date]);
+
+  const isSlotBlocked = (slot) => {
+    if (!form.doctorId || !form.date) return false;
+
+    const selected = new Date(`${form.date}T${slot}`);
+
+    return appointments.some((appt) => {
+      if (appt.doctor.id !== Number(form.doctorId)) return false;
+      if (appt.status === "CANCELLED") return false;
+
+      const apptTime = new Date(appt.dateTime);
+      const diff = Math.abs(apptTime - selected) / (1000 * 60);
+
+      return diff < 30;
+    });
+  };
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    setError("");
 
-    await axios.post(
-      "http://localhost:5000/api/appointments",
-      form,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    if (!form.patientId || !form.doctorId || !form.date) {
+      setError("Please complete all required fields");
+      return;
+    }
 
-    setForm({
-      patientId: "",
-      doctorId: "",
-      dateTime: "",
-      notes: "",
-    });
+    if (isDoctorOffDay) {
+      setError("This doctor is not available on the selected day.");
+      return;
+    }
 
-    setShowCreate(false);
-    fetchAppointments();
+    if (!form.time) {
+      setError("Please select a valid available time.");
+      return;
+    }
+
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/api/appointments",
+        {
+          patientId: form.patientId,
+          doctorId: form.doctorId,
+          notes: form.notes,
+          dateTime: `${form.date}T${form.time}`,
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSuccessMessage("Appointment created successfully");
+
+      setAppointments((prev) => [
+        ...prev,
+        response.data.appointment || response.data,
+      ]);
+
+      setForm({
+        patientId: "",
+        doctorId: "",
+        date: "",
+        time: "",
+        notes: "",
+      });
+
+      setShowCreate(false);
+
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to create appointment");
+    }
   };
-
-  /* ================= UPDATE / DELETE ================= */
 
   const handleStatusChange = async (id, status) => {
-    await axios.patch(
-      `http://localhost:5000/api/appointments/${id}/status`,
-      { status },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    fetchAppointments();
+    try {
+      await axios.patch(
+        `http://localhost:5000/api/appointments/${id}/status`,
+        { status },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSuccessMessage("Status updated successfully");
+
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status } : a))
+      );
+
+    } catch {
+      setError("Failed to update status");
+    }
   };
 
-  const handleDelete = async (id) => {
-    await axios.delete(
-      `http://localhost:5000/api/appointments/${id}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    fetchAppointments();
-  };
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
 
-  /* ================= FILTERING ================= */
+    try {
+      await axios.delete(
+        `http://localhost:5000/api/appointments/${deleteTarget.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setAppointments((prev) =>
+        prev.filter((a) => a.id !== deleteTarget.id)
+      );
+
+      setSuccessMessage("Appointment deleted successfully");
+      setDeleteTarget(null);
+
+    } catch {
+      setError("Failed to delete appointment");
+    }
+  };
 
   const filtered = useMemo(() => {
     return appointments.filter((a) =>
@@ -110,26 +252,29 @@ function Appointments() {
   }, [appointments, searchTerm]);
 
   const groupedAppointments = useMemo(() => {
-    return filtered.reduce((acc, appt) => {
-      const dateKey = new Date(appt.dateTime).toDateString();
-      if (!acc[dateKey]) acc[dateKey] = [];
-      acc[dateKey].push(appt);
+    const grouped = filtered.reduce((acc, appt) => {
+      const key = new Date(appt.dateTime).toDateString();
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(appt);
       return acc;
     }, {});
+
+    Object.keys(grouped).forEach((date) => {
+      grouped[date].sort(
+        (a, b) => new Date(a.dateTime) - new Date(b.dateTime)
+      );
+    });
+
+    return grouped;
   }, [filtered]);
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "PENDING":
-        return "bg-yellow-100 text-yellow-700";
-      case "APPROVED":
-        return "bg-blue-100 text-blue-700";
-      case "COMPLETED":
-        return "bg-green-100 text-green-700";
-      case "CANCELLED":
-        return "bg-red-100 text-red-700";
-      default:
-        return "bg-gray-100 text-gray-600";
+      case "PENDING": return "bg-yellow-100 text-yellow-700";
+      case "APPROVED": return "bg-blue-100 text-blue-700";
+      case "COMPLETED": return "bg-green-100 text-green-700";
+      case "CANCELLED": return "bg-red-100 text-red-700";
+      default: return "bg-gray-100 text-gray-600";
     }
   };
 
@@ -138,25 +283,35 @@ function Appointments() {
 
       <PageHeader title="Appointments Calendar" />
 
-      {/* ================= CREATE TOGGLE ================= */}
+      {successMessage && (
+        <div className="mb-6 bg-green-50 text-green-700 px-4 py-3 rounded-xl">
+          {successMessage}
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-6 bg-red-50 text-red-600 px-4 py-3 rounded-xl">
+          {error}
+        </div>
+      )}
+
       <div className="mb-8 flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-800">
-          Appointments
-        </h2>
+        <h2 className="text-lg font-semibold text-gray-800">Appointments</h2>
 
         <button
-          onClick={() => setShowCreate(!showCreate)}
+          onClick={() => {
+    if (showCreate) resetForm();
+    setShowCreate(!showCreate);
+  }}
           className="bg-teal-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-600 transition"
         >
           {showCreate ? "Cancel" : "+ New Appointment"}
         </button>
       </div>
 
-      {/* ================= CREATE FORM ================= */}
       {showCreate && (
-        <div className="mb-10 bg-white border border-gray-100 rounded-xl shadow-sm p-6">
-
-          <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="mb-10 p-8 bg-white rounded-2xl shadow-sm border border-gray-100">
+          <form onSubmit={handleCreate} className="grid md:grid-cols-2 gap-6">
 
             <SearchableSelect
               label="Patient"
@@ -164,9 +319,7 @@ function Appointments() {
               selectedId={form.patientId}
               placeholder="Search patient..."
               getLabel={(p) => `${p.firstName} ${p.lastName}`}
-              onSelect={(p) =>
-                setForm({ ...form, patientId: p.id })
-              }
+              onSelect={(p) => setForm({ ...form, patientId: p.id })}
             />
 
             <SearchableSelect
@@ -175,77 +328,70 @@ function Appointments() {
               selectedId={form.doctorId}
               placeholder="Search doctor..."
               getLabel={(d) => `Dr. ${d.firstName} ${d.lastName}`}
-              onSelect={(d) =>
-                setForm({ ...form, doctorId: d.id })
-              }
+              onSelect={(d) => setForm({ ...form, doctorId: d.id })}
             />
 
-            <div className="flex flex-col">
-              <label className="text-xs text-gray-500 mb-1">
-                Date & Time
-              </label>
+            <div>
               <input
-                type="datetime-local"
-                required
-                value={form.dateTime}
-                onChange={(e) =>
-                  setForm({ ...form, dateTime: e.target.value })
-                }
-                className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 transition"
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                className="w-full rounded-xl px-4 py-2 border border-gray-200 focus:ring-2 focus:ring-teal-200 outline-none transition"
               />
+              {form.doctorId && form.date && isDoctorOffDay && (
+                <div className="text-sm text-red-500 mt-2">
+                  This doctor is not available on this day.
+                </div>
+              )}
             </div>
 
-            <div className="flex flex-col">
-              <label className="text-xs text-gray-500 mb-1">
-                Notes
-              </label>
-              <textarea
-                rows="1"
-                value={form.notes}
-                onChange={(e) =>
-                  setForm({ ...form, notes: e.target.value })
-                }
-                className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400 transition resize-none"
-              />
-            </div>
+            <select
+              disabled={isDoctorOffDay}
+              value={form.time}
+              onChange={(e) => setForm({ ...form, time: e.target.value })}
+              className="rounded-xl px-4 py-2 border border-gray-200 focus:ring-2 focus:ring-teal-200 outline-none transition"
+            >
+              <option value="">Select Time</option>
+              {timeSlots.map((slot) => (
+                <option key={slot} value={slot} disabled={isSlotBlocked(slot)}>
+                  {slot}
+                </option>
+              ))}
+            </select>
 
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                className="bg-teal-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-teal-600 transition shadow-sm"
-              >
-                Create Appointment
-              </button>
-            </div>
+            <textarea
+              placeholder="Notes (optional)"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="md:col-span-2 rounded-xl px-4 py-2 border border-gray-200 focus:ring-2 focus:ring-teal-200 outline-none resize-none transition"
+            />
+
+            <button
+              type="submit"
+              className="md:col-span-2 bg-teal-500 text-white py-2.5 rounded-xl hover:bg-teal-600 transition"
+            >
+              Create Appointment
+            </button>
 
           </form>
         </div>
       )}
 
-      {/* ================= SEARCH ================= */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="mb-8">
         <SearchInput
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Search by patient or doctor..."
+          placeholder="Search..."
         />
-
-        <p className="text-sm text-gray-500">
-          Showing {filtered.length} of {appointments.length} appointments
-        </p>
       </div>
 
-      {/* ================= CALENDAR ================= */}
       <div className="space-y-10">
-
         {Object.entries(groupedAppointments)
           .sort((a, b) => new Date(a[0]) - new Date(b[0]))
           .map(([date, appts]) => (
-
             <div key={date}>
-
-              <h2 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2">
-                {new Date(date).toLocaleDateString(undefined, {
+              <h2 className="sticky top-0 z-10 text-lg font-semibold text-gray-700 py-3">
+                {new Date(date).toLocaleDateString("en-US", {
                   weekday: "long",
                   month: "long",
                   day: "numeric",
@@ -254,13 +400,11 @@ function Appointments() {
               </h2>
 
               <div className="grid gap-4">
-
                 {appts.map((appointment) => (
                   <div
                     key={appointment.id}
-                    className="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center hover:shadow-md transition"
+                    className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 flex justify-between items-center"
                   >
-
                     <div>
                       <p className="font-medium text-gray-800">
                         {appointment.patient.firstName} {appointment.patient.lastName}
@@ -278,19 +422,14 @@ function Appointments() {
                       </p>
 
                       {appointment.notes && (
-                        <p className="text-sm text-gray-600 mt-2 bg-gray-50 px-3 py-1 rounded">
+                        <p className="text-sm text-gray-600 mt-2">
                           📝 {appointment.notes}
                         </p>
                       )}
                     </div>
 
                     <div className="flex gap-3 items-center">
-
-                      <span
-                        className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusColor(
-                          appointment.status
-                        )}`}
-                      >
+                      <span className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusColor(appointment.status)}`}>
                         {appointment.status}
                       </span>
 
@@ -299,7 +438,7 @@ function Appointments() {
                         onChange={(e) =>
                           handleStatusChange(appointment.id, e.target.value)
                         }
-                        className="text-sm border border-gray-200 rounded px-2 py-1 bg-white"
+                        className="text-sm border border-gray-200 rounded px-2 py-1"
                       >
                         <option value="PENDING">PENDING</option>
                         <option value="APPROVED">APPROVED</option>
@@ -309,25 +448,73 @@ function Appointments() {
 
                       {user?.role === "ADMIN" && (
                         <button
-                          onClick={() => handleDelete(appointment.id)}
-                          className="bg-red-100 text-red-600 px-3 py-1 rounded hover:bg-red-200 transition text-sm"
+                          onClick={() => setDeleteTarget(appointment)}
+                          className="text-sm px-3 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 transition"
                         >
                           Delete
                         </button>
                       )}
-
                     </div>
-
                   </div>
                 ))}
-
               </div>
+            </div>
+          ))}
+      </div>
 
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
+          <div className="bg-white w-[420px] rounded-3xl p-8 shadow-2xl animate-[fadeIn_.2s_ease-out]">
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                Delete Appointment
+              </h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                This action cannot be undone.
+                <br />
+                Are you sure you want to remove this appointment?
+              </p>
             </div>
 
-          ))}
+            <div className="bg-gray-50 rounded-2xl p-4 mb-6">
+              <p className="text-sm font-medium text-gray-700">
+                {deleteTarget.patient.firstName} {deleteTarget.patient.lastName}
+              </p>
+              <p className="text-xs text-gray-500">
+                Dr. {deleteTarget.doctor.firstName} {deleteTarget.doctor.lastName}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">
+                {new Date(deleteTarget.dateTime).toLocaleDateString("en-US", {
+                  month: "long",
+                  day: "numeric",
+                  year: "numeric",
+                })}{" "}
+                at{" "}
+                {new Date(deleteTarget.dateTime).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </div>
 
-      </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-5 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleDelete}
+                className="px-5 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
