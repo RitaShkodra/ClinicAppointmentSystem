@@ -15,6 +15,10 @@ function Patients() {
   const [searchTerm, setSearchTerm] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const [successMessage, setSuccessMessage] = useState("");
+  const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     firstName: "",
@@ -25,6 +29,17 @@ function Patients() {
 
   const token = localStorage.getItem("accessToken");
 
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(""), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
   const fetchPatients = async () => {
     const res = await axios.get("http://localhost:5000/api/patients", {
       headers: { Authorization: `Bearer ${token}` },
@@ -32,45 +47,58 @@ function Patients() {
     setPatients(res.data);
   };
 
-  useEffect(() => {
-    fetchPatients();
-  }, []);
-
   const handleChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  const handleDelete = async (id) => {
-    await axios.delete(`http://localhost:5000/api/patients/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    fetchPatients();
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
-    if (editingPatient) {
-      await axios.put(
-        `http://localhost:5000/api/patients/${editingPatient.id}`,
-        form,
+    try {
+      if (editingPatient) {
+        await axios.put(
+          `http://localhost:5000/api/patients/${editingPatient.id}`,
+          form,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setSuccessMessage("Patient updated successfully");
+      } else {
+        await axios.post("http://localhost:5000/api/patients", form, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setSuccessMessage("Patient created successfully");
+      }
+
+      setForm({
+        firstName: "",
+        lastName: "",
+        phone: "",
+        email: "",
+      });
+
+      setEditingPatient(null);
+      setFormOpen(false);
+      fetchPatients();
+    } catch {
+      setError("Operation failed");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      await axios.delete(
+        `http://localhost:5000/api/patients/${deleteTarget.id}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-    } else {
-      await axios.post("http://localhost:5000/api/patients", form, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+
+      setSuccessMessage("Patient deleted successfully");
+      setDeleteTarget(null);
+      fetchPatients();
+    } catch {
+      setError("Failed to delete patient");
     }
-
-    setForm({
-      firstName: "",
-      lastName: "",
-      phone: "",
-      email: "",
-    });
-
-    setEditingPatient(null);
-    setFormOpen(false);
-    fetchPatients();
   };
 
   const filtered = patients.filter((p) =>
@@ -81,12 +109,22 @@ function Patients() {
 
   return (
     <div className="p-8">
-
       <PageHeader title="Patients" />
 
-      {(user?.role === "ADMIN" || user?.role === "STAFF") && (
-  <div className="flex justify-end mb-6">
+      {successMessage && (
+        <div className="mb-6 bg-green-50 text-green-700 px-4 py-3 rounded-xl">
+          {successMessage}
+        </div>
+      )}
 
+      {error && (
+        <div className="mb-6 bg-red-50 text-red-600 px-4 py-3 rounded-xl">
+          {error}
+        </div>
+      )}
+
+      {(user?.role === "ADMIN" || user?.role === "STAFF") && (
+        <div className="flex justify-end mb-6">
           <button
             onClick={() => {
               setEditingPatient(null);
@@ -98,19 +136,18 @@ function Patients() {
           </button>
         </div>
       )}
-
       {formOpen && (
-        <PatientFormCard
-          editingPatient={editingPatient}
-          form={form}
-          onChange={handleChange}
-          onCancel={() => {
-            setFormOpen(false);
-            setEditingPatient(null);
-          }}
-          onSubmit={handleSubmit}
-        />
-      )}
+  <PatientFormCard
+    editingPatient={null}
+    form={form}
+    onChange={handleChange}
+    onCancel={() => {
+      setFormOpen(false);
+    }}
+    onSubmit={handleSubmit}
+  />
+)}
+      
 
       <div className="flex justify-between items-center mb-6">
         <SearchInput
@@ -133,7 +170,6 @@ function Patients() {
             <th className="p-4 text-left">Actions</th>
           </tr>
         </thead>
-
         <tbody>
           {filtered.map((patient) => (
             <tr key={patient.id} className="hover:bg-gray-50">
@@ -151,24 +187,63 @@ function Patients() {
                       phone: patient.phone || "",
                       email: patient.email || "",
                     });
-                    setFormOpen(true);
+                    
                   }}
-                  onDelete={() => handleDelete(patient.id)}
+                  onDelete={() => setDeleteTarget(patient)}
                   showDelete={user?.role === "ADMIN"}
                 />
               </td>
             </tr>
           ))}
-
-          {filtered.length === 0 && (
-            <tr>
-              <td colSpan="5" className="text-center p-8 text-gray-400">
-                No patients found
-              </td>
-            </tr>
-          )}
         </tbody>
       </TableWrapper>
+      {editingPatient && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
+    <div className="bg-white w-[520px] rounded-3xl p-8 shadow-2xl">
+
+      <h3 className="text-xl font-semibold mb-6">
+        Edit Patient
+      </h3>
+
+      <PatientFormCard
+        editingPatient={editingPatient}
+        form={form}
+        onChange={handleChange}
+        onCancel={() => {
+          setEditingPatient(null);
+        }}
+        onSubmit={handleSubmit}
+      />
+
+    </div>
+  </div>
+)}
+      {deleteTarget && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
+          <div className="bg-white w-[420px] rounded-3xl p-8 shadow-2xl">
+            <h3 className="text-xl font-semibold mb-4">Delete Patient</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Are you sure you want to delete {deleteTarget.firstName} {deleteTarget.lastName}?
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-5 py-2 rounded-xl border border-gray-200"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleDelete}
+                className="px-5 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

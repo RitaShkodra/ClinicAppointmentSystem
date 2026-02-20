@@ -3,9 +3,12 @@ import {
   getAllAppointments,
   updateAppointmentStatus,
   deleteAppointment,
+  updateAppointment,
 } from "../services/appointment.service.js";
 
 import { sendEmail } from "../utils/email.js";
+import prisma from "../prisma.js";
+import { buildAppointmentEmail } from "../utils/emailTemplates.js";
 
 /* ============================
    CREATE APPOINTMENT
@@ -29,19 +32,14 @@ export const create = async (req, res) => {
     });
 
     // ✅ SEND EMAIL AFTER CREATION
-    await sendEmail({
-      to: appointment.patient.email,
-      subject: "Appointment Created",
-      html: `
-        <h2>Appointment Confirmed</h2>
-        <p>Hello ${appointment.patient.firstName},</p>
-        <p>Your appointment with Dr. ${appointment.doctor.firstName} 
-        on ${new Date(appointment.dateTime).toLocaleString()} 
-        has been successfully scheduled.</p>
-        <br/>
-        <p>Thank you,<br/>Clinic Team</p>
-      `,
-    });
+   await sendEmail({
+  to: appointment.patient.email,
+  subject: "Appointment Confirmed",
+  html: buildAppointmentEmail({
+    type: "CREATED",
+    appointment,
+  }),
+});
 
     res.status(201).json(appointment);
 
@@ -91,18 +89,13 @@ export const updateStatus = async (req, res) => {
 
     // ✅ SEND EMAIL AFTER STATUS UPDATE
     await sendEmail({
-      to: appointment.patient.email,
-      subject: "Appointment Status Updated",
-      html: `
-        <h2>Status Update</h2>
-        <p>Hello ${appointment.patient.firstName},</p>
-        <p>Your appointment on 
-        ${new Date(appointment.dateTime).toLocaleString()} 
-        is now <strong>${status}</strong>.</p>
-        <br/>
-        <p>Clinic Team</p>
-      `,
-    });
+  to: appointment.patient.email,
+  subject: "Appointment Status Updated",
+  html: buildAppointmentEmail({
+    type: "STATUS",
+    appointment,
+  }),
+});
 
     res.json(appointment);
 
@@ -124,6 +117,41 @@ export const remove = async (req, res) => {
     await deleteAppointment(req.params.id);
     res.json({ message: "Appointment deleted successfully" });
   } catch (error) {
+    res.status(400).json({
+      message: error.message,
+    });
+  }
+};
+export const update = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { patientId, doctorId, dateTime, notes } = req.body;
+
+    const updated = await updateAppointment({
+      id,
+      patientId,
+      doctorId,
+      dateTime,
+      notes,
+    });
+
+    await sendEmail({
+      to: updated.patient.email,
+      subject: "Appointment Updated",
+      html: `
+        <h2>Appointment Updated</h2>
+        <p>Hello ${updated.patient.firstName},</p>
+        <p>Your appointment with Dr. ${updated.doctor.firstName}
+        on ${new Date(updated.dateTime).toLocaleString()}
+        has been updated.</p>
+        <br/>
+        <p>Clinic Team</p>
+      `,
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error(error);
     res.status(400).json({
       message: error.message,
     });

@@ -5,6 +5,7 @@ import { AuthContext } from "../context/authcontext";
 import PageHeader from "../components/pageheader";
 import SearchInput from "../components/searchinput";
 import SearchableSelect from "../components/searchableselect";
+import ActionButtons from "../components/actionbuttons";
 
 function Appointments() {
   const { user } = useContext(AuthContext);
@@ -13,7 +14,15 @@ function Appointments() {
   const [successMessage, setSuccessMessage] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  
+
+  const [editTarget, setEditTarget] = useState(null);
+  const [editForm, setEditForm] = useState({
+    patientId: "",
+    doctorId: "",
+    date: "",
+    time: "",
+    notes: "",
+  });
 
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -28,18 +37,31 @@ function Appointments() {
     time: "",
     notes: "",
   });
-  const resetForm = () => {
-  setForm({
-    patientId: "",
-    doctorId: "",
-    date: "",
-    time: "",
-    notes: "",
-  });
-  setError("");
-};
 
   const token = localStorage.getItem("accessToken");
+
+  const resetForm = () => {
+    setForm({
+      patientId: "",
+      doctorId: "",
+      date: "",
+      time: "",
+      notes: "",
+    });
+    setError("");
+  };
+
+  const closeEdit = () => {
+    setEditTarget(null);
+    setEditForm({
+      patientId: "",
+      doctorId: "",
+      date: "",
+      time: "",
+      notes: "",
+    });
+    setError("");
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -61,7 +83,7 @@ function Appointments() {
     };
 
     fetchData();
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     if (successMessage) {
@@ -71,47 +93,55 @@ function Appointments() {
   }, [successMessage]);
 
   const getWeekdayKey = (dateString) => {
-  return new Date(dateString)
-    .toLocaleDateString("en-US", { weekday: "long" })
-    .toLowerCase();
-};
+    return new Date(dateString)
+      .toLocaleDateString("en-US", { weekday: "long" })
+      .toLowerCase();
+  };
 
-  const generateTimeSlots = () => {
-    if (!form.doctorId || !form.date) return [];
+  const parseAvailability = (doctor) => {
+    if (!doctor?.availability) return null;
 
-    const selectedDoctor = doctors.find(
-      (d) => d.id === Number(form.doctorId)
-    );
-
-    if (!selectedDoctor?.availability) return [];
-
-    let parsedAvailability;
-
-    if (typeof selectedDoctor.availability === "string") {
+    if (typeof doctor.availability === "string") {
       try {
-        parsedAvailability = JSON.parse(selectedDoctor.availability);
+        return JSON.parse(doctor.availability);
       } catch {
-        return [];
+        return null;
       }
-    } else {
-      parsedAvailability = selectedDoctor.availability;
     }
+    return doctor.availability;
+  };
 
-    const weekday = getWeekdayKey(form.date);
-   const dayAvailability =
-  parsedAvailability[weekday] ||
-  parsedAvailability[weekday.toUpperCase()] ||
-  parsedAvailability[
-    weekday.charAt(0).toUpperCase() + weekday.slice(1)
-  ];
+  const getDayAvailability = (availability, weekdayLower) => {
+    if (!availability) return null;
 
+    return (
+      availability[weekdayLower] ||
+      availability[weekdayLower.toUpperCase()] ||
+      availability[weekdayLower.charAt(0).toUpperCase() + weekdayLower.slice(1)] ||
+      null
+    );
+  };
+
+  const generateTimeSlotsFor = (doctorId, date) => {
+    if (!doctorId || !date) return [];
+
+    const selectedDoctor = doctors.find((d) => d.id === Number(doctorId));
+    const availability = parseAvailability(selectedDoctor);
+    if (!availability) return [];
+
+    const weekday = getWeekdayKey(date);
+    const dayAvailability = getDayAvailability(availability, weekday);
     if (!dayAvailability) return [];
 
-    const { start, end } = dayAvailability;
+    const { start, end } = dayAvailability || {};
+    if (!start || !end) return [];
 
     const slots = [];
-    const startDate = new Date(`${form.date}T${start}`);
-    const endDate = new Date(`${form.date}T${end}`);
+    const startDate = new Date(`${date}T${start}`);
+    const endDate = new Date(`${date}T${end}`);
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()))
+      return [];
 
     while (startDate < endDate) {
       const hours = startDate.getHours().toString().padStart(2, "0");
@@ -123,30 +153,66 @@ function Appointments() {
     return slots;
   };
 
-  const timeSlots = useMemo(() => {
-    return generateTimeSlots();
+  const createTimeSlots = useMemo(() => {
+    return generateTimeSlotsFor(form.doctorId, form.date);
   }, [form.doctorId, form.date, doctors]);
 
-  const isDoctorOffDay =
-    form.doctorId && form.date && timeSlots.length === 0;
+  const editTimeSlots = useMemo(() => {
+    return generateTimeSlotsFor(editForm.doctorId, editForm.date);
+  }, [editForm.doctorId, editForm.date, doctors]);
+
+  const isCreateDoctorOffDay = Boolean(
+    form.doctorId && form.date && createTimeSlots.length === 0
+  );
+
+  const isEditDoctorOffDay = Boolean(
+    editForm.doctorId &&
+      editForm.date &&
+      editTimeSlots.length === 0 &&
+      (editForm.doctorId !== String(editTarget?.doctor?.id) ||
+        editForm.date !== new Date(editTarget?.dateTime).toISOString().slice(0, 10))
+  );
+
+  const isPastDateTime = (date, time) => {
+    if (!date || !time) return false;
+    const selected = new Date(`${date}T${time}`);
+    if (Number.isNaN(selected.getTime())) return false;
+    return selected < new Date();
+  };
+
+  const isCreatePast = isPastDateTime(form.date, form.time);
+  const isEditPast = isPastDateTime(editForm.date, editForm.time);
 
   useEffect(() => {
     setForm((prev) => ({ ...prev, time: "" }));
+    setError("");
   }, [form.doctorId, form.date]);
 
-  const isSlotBlocked = (slot) => {
-    if (!form.doctorId || !form.date) return false;
+  useEffect(() => {
+    setEditForm((prev) => ({ ...prev, time: "" }));
+    setError("");
+  }, [editForm.doctorId, editForm.date]);
 
-    const selected = new Date(`${form.date}T${slot}`);
+  const isSlotBlockedFor = (
+    { doctorId, patientId, date, slot },
+    excludeAppointmentId = null
+  ) => {
+    if (!doctorId || !date || !slot) return false;
+
+    const selected = new Date(`${date}T${slot}`);
+    if (Number.isNaN(selected.getTime())) return false;
 
     return appointments.some((appt) => {
-      if (appt.doctor.id !== Number(form.doctorId)) return false;
+      if (excludeAppointmentId && appt.id === excludeAppointmentId) return false;
       if (appt.status === "CANCELLED") return false;
 
       const apptTime = new Date(appt.dateTime);
-      const diff = Math.abs(apptTime - selected) / (1000 * 60);
+      const diffMin = Math.abs(apptTime - selected) / (1000 * 60);
 
-      return diff < 30;
+      const doctorMatch = appt.doctor?.id === Number(doctorId);
+      const patientMatch = patientId ? appt.patient?.id === Number(patientId) : false;
+
+      return diffMin < 30 && (doctorMatch || patientMatch);
     });
   };
 
@@ -159,13 +225,30 @@ function Appointments() {
       return;
     }
 
-    if (isDoctorOffDay) {
+    if (isCreateDoctorOffDay) {
       setError("This doctor is not available on the selected day.");
       return;
     }
 
     if (!form.time) {
       setError("Please select a valid available time.");
+      return;
+    }
+
+    if (isCreatePast) {
+      setError("Cannot set appointment in the past.");
+      return;
+    }
+
+    const blocked = isSlotBlockedFor({
+      doctorId: form.doctorId,
+      patientId: form.patientId,
+      date: form.date,
+      slot: form.time,
+    });
+
+    if (blocked) {
+      setError("This slot is blocked (doctor or patient has a nearby appointment).");
       return;
     }
 
@@ -183,10 +266,7 @@ function Appointments() {
 
       setSuccessMessage("Appointment created successfully");
 
-      setAppointments((prev) => [
-        ...prev,
-        response.data.appointment || response.data,
-      ]);
+      setAppointments((prev) => [...prev, response.data.appointment || response.data]);
 
       setForm({
         patientId: "",
@@ -197,13 +277,13 @@ function Appointments() {
       });
 
       setShowCreate(false);
-
     } catch (err) {
       setError(err.response?.data?.message || "Failed to create appointment");
     }
   };
 
   const handleStatusChange = async (id, status) => {
+    setError("");
     try {
       await axios.patch(
         `http://localhost:5000/api/appointments/${id}/status`,
@@ -216,7 +296,6 @@ function Appointments() {
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status } : a))
       );
-
     } catch {
       setError("Failed to update status");
     }
@@ -224,22 +303,105 @@ function Appointments() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
+    setError("");
 
     try {
       await axios.delete(
         `http://localhost:5000/api/appointments/${deleteTarget.id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      setAppointments((prev) => prev.filter((a) => a.id !== deleteTarget.id));
+      setSuccessMessage("Appointment deleted successfully");
+      setDeleteTarget(null);
+    } catch {
+      setError("Failed to delete appointment");
+    }
+  };
+
+  const openEdit = (appt) => {
+    setError("");
+    setEditTarget(appt);
+
+    const dt = new Date(appt.dateTime);
+    const date = dt.toISOString().slice(0, 10);
+
+    const hh = dt.getHours().toString().padStart(2, "0");
+    const mm = dt.getMinutes().toString().padStart(2, "0");
+    const time = `${hh}:${mm}`;
+
+    setEditForm({
+      patientId: appt.patient?.id || "",
+      doctorId: appt.doctor?.id || "",
+      date,
+      time,
+      notes: appt.notes || "",
+    });
+  };
+
+  const handleEditSave = async (e) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    setError("");
+
+    if (!editForm.patientId || !editForm.doctorId || !editForm.date) {
+      setError("Please complete all required fields");
+      return;
+    }
+
+    if (isEditDoctorOffDay) {
+      setError("This doctor is not available on the selected day.");
+      return;
+    }
+
+    if (!editForm.time) {
+      setError("Please select a valid available time.");
+      return;
+    }
+
+    if (isEditPast) {
+      setError("Cannot set appointment in the past.");
+      return;
+    }
+
+    const blocked = isSlotBlockedFor(
+      {
+        doctorId: editForm.doctorId,
+        patientId: editForm.patientId,
+        date: editForm.date,
+        slot: editForm.time,
+      },
+      editTarget.id
+    );
+
+    if (blocked) {
+      setError("This slot is blocked (doctor or patient has a nearby appointment).");
+      return;
+    }
+
+    try {
+      const res = await axios.put(
+        `http://localhost:5000/api/appointments/${editTarget.id}`,
+        {
+          patientId: editForm.patientId,
+          doctorId: editForm.doctorId,
+          notes: editForm.notes,
+          dateTime: `${editForm.date}T${editForm.time}`,
+        },
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      const updated = res.data.appointment || res.data;
+
       setAppointments((prev) =>
-        prev.filter((a) => a.id !== deleteTarget.id)
+        prev.map((a) => (a.id === editTarget.id ? updated : a))
       );
-
-      setSuccessMessage("Appointment deleted successfully");
-      setDeleteTarget(null);
-
-    } catch {
-      setError("Failed to delete appointment");
+      setSuccessMessage("Appointment updated successfully");
+      closeEdit();
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to update appointment");
     }
   };
 
@@ -260,9 +422,7 @@ function Appointments() {
     }, {});
 
     Object.keys(grouped).forEach((date) => {
-      grouped[date].sort(
-        (a, b) => new Date(a.dateTime) - new Date(b.dateTime)
-      );
+      grouped[date].sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
     });
 
     return grouped;
@@ -270,17 +430,23 @@ function Appointments() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "PENDING": return "bg-yellow-100 text-yellow-700";
-      case "APPROVED": return "bg-blue-100 text-blue-700";
-      case "COMPLETED": return "bg-green-100 text-green-700";
-      case "CANCELLED": return "bg-red-100 text-red-700";
-      default: return "bg-gray-100 text-gray-600";
+      case "PENDING":
+        return "bg-yellow-100 text-yellow-700";
+      case "APPROVED":
+        return "bg-blue-100 text-blue-700";
+      case "COMPLETED":
+        return "bg-green-100 text-green-700";
+      case "CANCELLED":
+        return "bg-red-100 text-red-700";
+      default:
+        return "bg-gray-100 text-gray-600";
     }
   };
 
+  const canEdit = user?.role === "ADMIN" || user?.role === "STAFF";
+
   return (
     <div className="p-8">
-
       <PageHeader title="Appointments Calendar" />
 
       {successMessage && (
@@ -300,9 +466,9 @@ function Appointments() {
 
         <button
           onClick={() => {
-    if (showCreate) resetForm();
-    setShowCreate(!showCreate);
-  }}
+            if (showCreate) resetForm();
+            setShowCreate(!showCreate);
+          }}
           className="bg-teal-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-teal-600 transition"
         >
           {showCreate ? "Cancel" : "+ New Appointment"}
@@ -312,14 +478,16 @@ function Appointments() {
       {showCreate && (
         <div className="mb-10 p-8 bg-white rounded-2xl shadow-sm border border-gray-100">
           <form onSubmit={handleCreate} className="grid md:grid-cols-2 gap-6">
-
             <SearchableSelect
               label="Patient"
               options={patients}
               selectedId={form.patientId}
               placeholder="Search patient..."
               getLabel={(p) => `${p.firstName} ${p.lastName}`}
-              onSelect={(p) => setForm({ ...form, patientId: p.id })}
+              onSelect={(p) => {
+                setError("");
+                setForm({ ...form, patientId: p.id });
+              }}
             />
 
             <SearchableSelect
@@ -328,51 +496,84 @@ function Appointments() {
               selectedId={form.doctorId}
               placeholder="Search doctor..."
               getLabel={(d) => `Dr. ${d.firstName} ${d.lastName}`}
-              onSelect={(d) => setForm({ ...form, doctorId: d.id })}
+              onSelect={(d) => {
+                setError("");
+                setForm({ ...form, doctorId: d.id });
+              }}
             />
 
             <div>
               <input
                 type="date"
                 value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                onChange={(e) => {
+                  setError("");
+                  setForm({ ...form, date: e.target.value });
+                }}
                 className="w-full rounded-xl px-4 py-2 border border-gray-200 focus:ring-2 focus:ring-teal-200 outline-none transition"
               />
-              {form.doctorId && form.date && isDoctorOffDay && (
+              {form.doctorId && form.date && isCreateDoctorOffDay && (
                 <div className="text-sm text-red-500 mt-2">
                   This doctor is not available on this day.
                 </div>
               )}
             </div>
 
-            <select
-              disabled={isDoctorOffDay}
-              value={form.time}
-              onChange={(e) => setForm({ ...form, time: e.target.value })}
-              className="rounded-xl px-4 py-2 border border-gray-200 focus:ring-2 focus:ring-teal-200 outline-none transition"
-            >
-              <option value="">Select Time</option>
-              {timeSlots.map((slot) => (
-                <option key={slot} value={slot} disabled={isSlotBlocked(slot)}>
-                  {slot}
-                </option>
-              ))}
-            </select>
+            <div>
+              <select
+                disabled={isCreateDoctorOffDay}
+                value={form.time}
+                onChange={(e) => {
+                  setError("");
+                  setForm({ ...form, time: e.target.value });
+                }}
+                className="w-full rounded-xl px-4 py-2 border border-gray-200 focus:ring-2 focus:ring-teal-200 outline-none transition"
+              >
+                <option value="">Select Time</option>
+                {createTimeSlots.map((slot) => (
+                  <option
+                    key={slot}
+                    value={slot}
+                    disabled={isSlotBlockedFor({
+                      doctorId: form.doctorId,
+                      patientId: form.patientId,
+                      date: form.date,
+                      slot,
+                    })}
+                  >
+                    {slot}
+                  </option>
+                ))}
+              </select>
+
+              {form.date && form.time && isCreatePast && (
+                <div className="text-sm text-red-500 mt-2">
+                  Cannot set appointment in the past.
+                </div>
+              )}
+            </div>
 
             <textarea
               placeholder="Notes (optional)"
               value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              onChange={(e) => {
+                setError("");
+                setForm({ ...form, notes: e.target.value });
+              }}
               className="md:col-span-2 rounded-xl px-4 py-2 border border-gray-200 focus:ring-2 focus:ring-teal-200 outline-none resize-none transition"
             />
 
             <button
               type="submit"
-              className="md:col-span-2 bg-teal-500 text-white py-2.5 rounded-xl hover:bg-teal-600 transition"
+              disabled={isCreatePast}
+              className={`md:col-span-2 py-2.5 rounded-xl transition ${
+                isCreatePast
+                  ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-teal-500 text-white hover:bg-teal-600"
+              }`}
             >
               Create Appointment
             </button>
-
           </form>
         </div>
       )}
@@ -407,11 +608,13 @@ function Appointments() {
                   >
                     <div>
                       <p className="font-medium text-gray-800">
-                        {appointment.patient.firstName} {appointment.patient.lastName}
+                        {appointment.patient.firstName}{" "}
+                        {appointment.patient.lastName}
                       </p>
 
                       <p className="text-sm text-gray-500">
-                        Dr. {appointment.doctor.firstName} {appointment.doctor.lastName}
+                        Dr. {appointment.doctor.firstName}{" "}
+                        {appointment.doctor.lastName}
                       </p>
 
                       <p className="text-sm text-gray-400 mt-1">
@@ -429,7 +632,11 @@ function Appointments() {
                     </div>
 
                     <div className="flex gap-3 items-center">
-                      <span className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusColor(appointment.status)}`}>
+                      <span
+                        className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusColor(
+                          appointment.status
+                        )}`}
+                      >
                         {appointment.status}
                       </span>
 
@@ -446,14 +653,13 @@ function Appointments() {
                         <option value="CANCELLED">CANCELLED</option>
                       </select>
 
-                      {user?.role === "ADMIN" && (
-                        <button
-                          onClick={() => setDeleteTarget(appointment)}
-                          className="text-sm px-3 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 transition"
-                        >
-                          Delete
-                        </button>
-                      )}
+                     {canEdit && (
+  <ActionButtons
+    onEdit={() => openEdit(appointment)}
+    onDelete={() => setDeleteTarget(appointment)}
+    showDelete={user?.role === "ADMIN"}
+  />
+)}
                     </div>
                   </div>
                 ))}
@@ -462,6 +668,136 @@ function Appointments() {
           ))}
       </div>
 
+      {editTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
+          <div className="bg-white w-[520px] rounded-3xl p-8 shadow-2xl animate-[fadeIn_.2s_ease-out]">
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                Edit Appointment
+              </h3>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                Update details for this appointment.
+              </p>
+            </div>
+
+            <form
+              onSubmit={handleEditSave}
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            >
+              <SearchableSelect
+                label="Patient"
+                options={patients}
+                selectedId={editForm.patientId}
+                placeholder="Search patient..."
+                getLabel={(p) => `${p.firstName} ${p.lastName}`}
+                onSelect={(p) => {
+                  setError("");
+                  setEditForm((prev) => ({ ...prev, patientId: p.id }));
+                }}
+              />
+
+              <SearchableSelect
+                label="Doctor"
+                options={doctors}
+                selectedId={editForm.doctorId}
+                placeholder="Search doctor..."
+                getLabel={(d) => `Dr. ${d.firstName} ${d.lastName}`}
+                onSelect={(d) => {
+                  setError("");
+                  setEditForm((prev) => ({ ...prev, doctorId: d.id }));
+                }}
+              />
+
+              <div>
+                <input
+                  type="date"
+                  value={editForm.date}
+                  onChange={(e) => {
+                    setError("");
+                    setEditForm((prev) => ({ ...prev, date: e.target.value }));
+                  }}
+                  className="w-full rounded-xl px-4 py-2 border border-gray-200 focus:ring-2 focus:ring-teal-200 outline-none transition"
+                />
+                {editForm.doctorId && editForm.date && isEditDoctorOffDay && (
+                  <div className="text-sm text-red-500 mt-2">
+                    This doctor is not available on this day.
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <select
+                  disabled={isEditDoctorOffDay}
+                  value={editForm.time}
+                  onChange={(e) => {
+                    setError("");
+                    setEditForm((prev) => ({ ...prev, time: e.target.value }));
+                  }}
+                  className="w-full rounded-xl px-4 py-2 border border-gray-200 focus:ring-2 focus:ring-teal-200 outline-none transition"
+                >
+                  <option value="">Select Time</option>
+                  {editTimeSlots.map((slot) => (
+                    <option
+                      key={slot}
+                      value={slot}
+                      disabled={isSlotBlockedFor(
+                        {
+                          doctorId: editForm.doctorId,
+                          patientId: editForm.patientId,
+                          date: editForm.date,
+                          slot,
+                        },
+                        editTarget.id
+                      )}
+                    >
+                      {slot}
+                    </option>
+                  ))}
+                </select>
+
+                {editForm.date && editForm.time && isEditPast && (
+                  <div className="text-sm text-red-500 mt-2">
+                    Cannot set appointment in the past.
+                  </div>
+                )}
+              </div>
+
+              <textarea
+                placeholder="Notes (optional)"
+                value={editForm.notes}
+                onChange={(e) => {
+                  setError("");
+                  setEditForm((prev) => ({ ...prev, notes: e.target.value }));
+                }}
+                className="md:col-span-2 rounded-xl px-4 py-2 border border-gray-200 focus:ring-2 focus:ring-teal-200 outline-none resize-none transition"
+              />
+
+              <div className="md:col-span-2 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeEdit}
+                  className="px-5 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isEditPast}
+                  className={`px-5 py-2 rounded-xl transition ${
+                    isEditPast
+                      ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      : "bg-teal-500 text-white hover:bg-teal-600"
+                  }`}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
           <div className="bg-white w-[420px] rounded-3xl p-8 shadow-2xl animate-[fadeIn_.2s_ease-out]">
@@ -469,6 +805,7 @@ function Appointments() {
               <h3 className="text-xl font-semibold text-gray-800 mb-2">
                 Delete Appointment
               </h3>
+
               <p className="text-sm text-gray-500 leading-relaxed">
                 This action cannot be undone.
                 <br />
@@ -480,9 +817,11 @@ function Appointments() {
               <p className="text-sm font-medium text-gray-700">
                 {deleteTarget.patient.firstName} {deleteTarget.patient.lastName}
               </p>
+
               <p className="text-xs text-gray-500">
                 Dr. {deleteTarget.doctor.firstName} {deleteTarget.doctor.lastName}
               </p>
+
               <p className="text-xs text-gray-400 mt-1">
                 {new Date(deleteTarget.dateTime).toLocaleDateString("en-US", {
                   month: "long",
@@ -515,7 +854,6 @@ function Appointments() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

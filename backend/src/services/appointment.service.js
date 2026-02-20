@@ -171,3 +171,76 @@ export const deleteAppointment = async (id) => {
     where: { id: Number(id) },
   });
 };
+export const updateAppointment = async ({
+  id,
+  patientId,
+  doctorId,
+  dateTime,
+  notes,
+}) => {
+  const appointmentDate = new Date(dateTime);
+
+  if (appointmentDate < new Date()) {
+    throw new Error("Cannot set appointment in the past");
+  }
+
+  const existing = await prisma.appointment.findUnique({
+    where: { id: Number(id) },
+  });
+
+  if (!existing) {
+    throw new Error("Appointment not found");
+  }
+
+  const windowStart = new Date(appointmentDate);
+  windowStart.setMinutes(windowStart.getMinutes() - 30);
+
+  const windowEnd = new Date(appointmentDate);
+  windowEnd.setMinutes(windowEnd.getMinutes() + 30);
+
+  const doctorConflict = await prisma.appointment.findFirst({
+    where: {
+      id: { not: Number(id) },
+      doctorId: Number(doctorId),
+      status: { not: "CANCELLED" },
+      dateTime: {
+        gte: windowStart,
+        lt: windowEnd,
+      },
+    },
+  });
+
+  if (doctorConflict) {
+    throw new Error("Doctor has another appointment within 30 minutes");
+  }
+
+  const patientConflict = await prisma.appointment.findFirst({
+    where: {
+      id: { not: Number(id) },
+      patientId: Number(patientId),
+      status: { not: "CANCELLED" },
+      dateTime: {
+        gte: windowStart,
+        lt: windowEnd,
+      },
+    },
+  });
+
+  if (patientConflict) {
+    throw new Error("Patient has another appointment within 30 minutes");
+  }
+
+  return await prisma.appointment.update({
+    where: { id: Number(id) },
+    data: {
+      patientId: Number(patientId),
+      doctorId: Number(doctorId),
+      dateTime: appointmentDate,
+      notes: notes || null,
+    },
+    include: {
+      patient: true,
+      doctor: true,
+    },
+  });
+};

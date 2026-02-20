@@ -4,6 +4,7 @@ import {
   getAll,
   updateStatus,
   remove,
+  update,
 } from "../controllers/appointment.controller.js";
 
 import { authMiddleware } from "../middlewares/auth.middleware.js";
@@ -49,6 +50,12 @@ router.delete(
   authMiddleware,
   authorizeRoles("ADMIN"),
   remove
+);
+router.put(
+  "/:id",
+  authMiddleware,
+  authorizeRoles("ADMIN", "STAFF"),
+  update
 );
 
 export default router;

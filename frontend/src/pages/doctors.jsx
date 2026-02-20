@@ -15,9 +15,12 @@ function Doctors() {
   const [searchTerm, setSearchTerm] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingDoctor, setEditingDoctor] = useState(null);
-
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [scheduleDoctor, setScheduleDoctor] = useState(null);
   const [availability, setAvailability] = useState({});
+
+  const [successMessage, setSuccessMessage] = useState("");
+  const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     firstName: "",
@@ -28,8 +31,6 @@ function Doctors() {
   });
 
   const token = localStorage.getItem("accessToken");
-
-  /* ================= FETCH ================= */
 
   const fetchDoctors = async () => {
     const res = await axios.get("http://localhost:5000/api/doctors", {
@@ -42,73 +43,102 @@ function Doctors() {
     fetchDoctors();
   }, []);
 
-  /* ================= HANDLE FORM ================= */
-
-  const handleChange = (e) =>
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-
-  const handleDelete = async (id) => {
-    await axios.delete(`http://localhost:5000/api/doctors/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    fetchDoctors();
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (editingDoctor) {
-      await axios.put(
-        `http://localhost:5000/api/doctors/${editingDoctor.id}`,
-        form,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-    } else {
-      await axios.post("http://localhost:5000/api/doctors", form, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(""), 4000);
+      return () => clearTimeout(timer);
     }
-
-    setForm({
-      firstName: "",
-      lastName: "",
-      specialization: "",
-      phone: "",
-      email: "",
-    });
-
-    setEditingDoctor(null);
-    setFormOpen(false);
-    fetchDoctors();
-  };
-
-  /* ================= SCHEDULE ================= */
+  }, [successMessage]);
 
   useEffect(() => {
     if (scheduleDoctor?.availability) {
-      setAvailability(JSON.parse(scheduleDoctor.availability));
+      try {
+        setAvailability(JSON.parse(scheduleDoctor.availability));
+      } catch {
+        setAvailability({});
+      }
     } else if (scheduleDoctor) {
       setAvailability({
-        MONDAY: null,
-        TUESDAY: null,
-        WEDNESDAY: null,
-        THURSDAY: null,
-        FRIDAY: null,
+        Monday: null,
+        Tuesday: null,
+        Wednesday: null,
+        Thursday: null,
+        Friday: null,
       });
     }
   }, [scheduleDoctor]);
 
-  const handleSaveSchedule = async () => {
-    await axios.put(
-      `http://localhost:5000/api/doctors/${scheduleDoctor.id}`,
-      {
-        availability: JSON.stringify(availability),
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+  const handleChange = (e) =>
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-    setScheduleDoctor(null);
-    fetchDoctors();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    try {
+      if (editingDoctor) {
+        await axios.put(
+          `http://localhost:5000/api/doctors/${editingDoctor.id}`,
+          form,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        setSuccessMessage("Doctor updated successfully");
+      } else {
+        await axios.post("http://localhost:5000/api/doctors", form, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setSuccessMessage("Doctor created successfully");
+      }
+
+      setForm({
+        firstName: "",
+        lastName: "",
+        specialization: "",
+        phone: "",
+        email: "",
+      });
+
+      setEditingDoctor(null);
+      setFormOpen(false);
+      fetchDoctors();
+    } catch {
+      setError("Operation failed");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      await axios.delete(
+        `http://localhost:5000/api/doctors/${deleteTarget.id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSuccessMessage("Doctor deleted successfully");
+      setDeleteTarget(null);
+      fetchDoctors();
+    } catch {
+      setError("Failed to delete doctor");
+    }
+  };
+
+  const handleSaveSchedule = async () => {
+    try {
+      await axios.put(
+        `http://localhost:5000/api/doctors/${scheduleDoctor.id}`,
+        {
+          availability: JSON.stringify(availability),
+        },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setSuccessMessage("Schedule updated successfully");
+      setScheduleDoctor(null);
+      fetchDoctors();
+    } catch {
+      setError("Failed to update schedule");
+    }
   };
 
   const filtered = doctors.filter((d) =>
@@ -121,11 +151,30 @@ function Doctors() {
     <div className="p-8">
       <PageHeader title="Doctors" />
 
+      {successMessage && (
+        <div className="mb-6 bg-green-50 text-green-700 px-4 py-3 rounded-xl">
+          {successMessage}
+        </div>
+      )}
+
+      {error && (
+        <div className="mb-6 bg-red-50 text-red-600 px-4 py-3 rounded-xl">
+          {error}
+        </div>
+      )}
+
       {user?.role === "ADMIN" && (
         <div className="flex justify-end mb-6">
           <button
             onClick={() => {
               setEditingDoctor(null);
+              setForm({
+                firstName: "",
+                lastName: "",
+                specialization: "",
+                phone: "",
+                email: "",
+              });
               setFormOpen(!formOpen);
             }}
             className="bg-teal-500 text-white px-5 py-2 rounded-lg hover:bg-teal-600 transition"
@@ -137,13 +186,10 @@ function Doctors() {
 
       {formOpen && (
         <DoctorFormCard
-          editingDoctor={editingDoctor}
+          editingDoctor={null}
           form={form}
           onChange={handleChange}
-          onCancel={() => {
-            setFormOpen(false);
-            setEditingDoctor(null);
-          }}
+          onCancel={() => setFormOpen(false)}
           onSubmit={handleSubmit}
         />
       )}
@@ -179,55 +225,95 @@ function Doctors() {
               <td className="p-4">{doctor.specialization}</td>
               <td className="p-4">{doctor.phone}</td>
               <td className="p-4">{doctor.email}</td>
-              <td className="p-4 flex gap-2">
-                <ActionButtons
-                  onEdit={() => {
-                    setEditingDoctor(doctor);
-                    setForm({
-                      firstName: doctor.firstName,
-                      lastName: doctor.lastName,
-                      specialization: doctor.specialization,
-                      phone: doctor.phone || "",
-                      email: doctor.email || "",
-                    });
-                    setFormOpen(true);
-                  }}
-                  onDelete={() => handleDelete(doctor.id)}
-                  showDelete={user?.role === "ADMIN"}
-                />
 
-                <button
-                  onClick={() => setScheduleDoctor(doctor)}
-                  className="text-sm px-3 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
-                >
-                  Manage Schedule
-                </button>
+              <td className="p-4">
+                <div className="flex items-center gap-3">
+                  <ActionButtons
+                    onEdit={() => {
+                      setEditingDoctor(doctor);
+                      setForm({
+                        firstName: doctor.firstName,
+                        lastName: doctor.lastName,
+                        specialization: doctor.specialization,
+                        phone: doctor.phone || "",
+                        email: doctor.email || "",
+                      });
+                    }}
+                    onDelete={() => setDeleteTarget(doctor)}
+                    showDelete={user?.role === "ADMIN"}
+                  />
+
+                  <button
+                    onClick={() => setScheduleDoctor(doctor)}
+                    className="text-sm px-3 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
+                  >
+                    Manage Schedule
+                  </button>
+                </div>
               </td>
             </tr>
           ))}
         </tbody>
       </TableWrapper>
 
-      {/* ===== Schedule Modal ===== */}
+      {editingDoctor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
+          <div className="bg-white w-[520px] rounded-3xl p-8 shadow-2xl">
+            <h3 className="text-xl font-semibold mb-6">Edit Doctor</h3>
+            <DoctorFormCard
+              editingDoctor={editingDoctor}
+              form={form}
+              onChange={handleChange}
+              onCancel={() => setEditingDoctor(null)}
+              onSubmit={handleSubmit}
+            />
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
+          <div className="bg-white w-[420px] rounded-3xl p-8 shadow-2xl">
+            <h3 className="text-xl font-semibold mb-4">Delete Doctor</h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Are you sure you want to delete Dr. {deleteTarget.lastName}?
+            </p>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="px-5 py-2 rounded-xl border border-gray-200"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={handleDelete}
+                className="px-5 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {scheduleDoctor && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
-          <div className="bg-white w-[520px] rounded-3xl p-8 shadow-2xl">
-
+          <div className="bg-white w-[560px] rounded-3xl p-8 shadow-2xl">
             <h3 className="text-xl font-semibold mb-6">
-              Manage Schedule -  Dr. {scheduleDoctor.lastName}
+              Manage Schedule – Dr. {scheduleDoctor.lastName}
             </h3>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
               {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(day => (
                 <div key={day} className="flex items-center justify-between">
-
                   <span className="text-sm font-medium text-gray-700 w-28">
                     {day}
                   </span>
 
                   {availability[day] ? (
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-3 items-center">
                       <input
                         type="time"
                         value={availability[day].start}
@@ -240,10 +326,10 @@ function Doctors() {
                             }
                           })
                         }
-                        className="border rounded px-2 py-1 text-sm"
+                        className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:ring-2 focus:ring-teal-200 outline-none"
                       />
 
-                      <span>-</span>
+                      <span className="text-gray-400">–</span>
 
                       <input
                         type="time"
@@ -257,14 +343,14 @@ function Doctors() {
                             }
                           })
                         }
-                        className="border rounded px-2 py-1 text-sm"
+                        className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:ring-2 focus:ring-teal-200 outline-none"
                       />
 
                       <button
                         onClick={() =>
                           setAvailability({ ...availability, [day]: null })
                         }
-                        className="text-xs text-red-500"
+                        className="text-xs px-3 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
                       >
                         OFF
                       </button>
@@ -277,12 +363,11 @@ function Doctors() {
                           [day]: { start: "09:00", end: "17:00" }
                         })
                       }
-                      className="text-sm text-blue-500"
+                      className="text-sm px-3 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
                     >
                       Set Hours
                     </button>
                   )}
-
                 </div>
               ))}
             </div>
@@ -290,23 +375,21 @@ function Doctors() {
             <div className="flex justify-end gap-3 mt-8">
               <button
                 onClick={() => setScheduleDoctor(null)}
-                className="px-4 py-2 border rounded-xl"
+                className="px-5 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
               >
                 Cancel
               </button>
 
               <button
                 onClick={handleSaveSchedule}
-                className="px-4 py-2 bg-teal-500 text-white rounded-xl hover:bg-teal-600 transition"
+                className="px-5 py-2 rounded-xl bg-teal-500 text-white hover:bg-teal-600 transition"
               >
-                Save
+                Save Schedule
               </button>
             </div>
-
           </div>
         </div>
       )}
-
     </div>
   );
 }
