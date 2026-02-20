@@ -95,7 +95,6 @@ export const updateAppointmentStatus = async (id, newStatus) => {
     throw new Error("Invalid appointment status");
   }
 
-  // Optional: prevent weird transitions
   if (appointment.status === "CANCELLED") {
     throw new Error("Cannot modify a cancelled appointment");
   }
@@ -103,6 +102,10 @@ export const updateAppointmentStatus = async (id, newStatus) => {
   return await prisma.appointment.update({
     where: { id: Number(id) },
     data: { status: newStatus },
+    include: {
+      patient: true,
+      doctor: true,
+    },
   });
 };
 

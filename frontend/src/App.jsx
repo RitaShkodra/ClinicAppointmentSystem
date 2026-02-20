@@ -5,6 +5,7 @@ import ProtectedRoute from "./components/protectedroute";
 import Layout from "./components/layout";
 import Patients from "./pages/patients";
 import Doctors from "./pages/doctors";
+import Appointments from "./pages/appointments";
 
 
 function App() {
@@ -45,7 +46,7 @@ function App() {
   }
 />
 
-{/* <Route
+<Route
   path="/appointments"
   element={
     <ProtectedRoute allowedRoles={["ADMIN", "STAFF"]}>
@@ -54,7 +55,7 @@ function App() {
       </Layout>
     </ProtectedRoute>
   }
-/> */}
+/>
 
     </Routes>
   );
