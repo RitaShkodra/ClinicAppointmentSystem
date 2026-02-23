@@ -177,7 +177,10 @@ function Doctors() {
               });
               setFormOpen(!formOpen);
             }}
-            className="bg-teal-500 text-white px-5 py-2 rounded-lg hover:bg-teal-600 transition"
+            className="text-white px-5 py-2 rounded-lg transition shadow-sm"
+style={{ backgroundColor: "#579ec0" }}
+onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#4b8fb0"}
+onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
           >
             {formOpen ? "Close" : "+ Add Doctor"}
           </button>
@@ -206,7 +209,7 @@ function Doctors() {
       </div>
 
       <TableWrapper>
-        <thead className="bg-gray-50 text-gray-600">
+       <thead className="bg-gray-100 text-gray-700 border-b border-gray-200">
           <tr>
             <th className="p-4 text-left">First Name</th>
             <th className="p-4 text-left">Last Name</th>
@@ -326,7 +329,7 @@ function Doctors() {
                             }
                           })
                         }
-                        className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:ring-2 focus:ring-teal-200 outline-none"
+                        className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:ring-4 focus:ring-[#b0d2db]/40 outline-none"
                       />
 
                       <span className="text-gray-400">–</span>
@@ -343,7 +346,7 @@ function Doctors() {
                             }
                           })
                         }
-                        className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:ring-2 focus:ring-teal-200 outline-none"
+                        className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:ring-4 focus:ring-[#b0d2db]/40 outline-none"
                       />
 
                       <button
@@ -382,7 +385,10 @@ function Doctors() {
 
               <button
                 onClick={handleSaveSchedule}
-                className="px-5 py-2 rounded-xl bg-teal-500 text-white hover:bg-teal-600 transition"
+                className="text-white px-5 py-2 rounded-xl transition shadow-sm"
+style={{ backgroundColor: "#579ec0" }}
+onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#4b8fb0"}
+onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
               >
                 Save Schedule
               </button>

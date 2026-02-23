@@ -130,7 +130,10 @@ function Patients() {
               setEditingPatient(null);
               setFormOpen(!formOpen);
             }}
-            className="bg-teal-500 text-white px-5 py-2 rounded-lg hover:bg-teal-600 transition"
+            className="text-white px-5 py-2 rounded-lg transition shadow-sm"
+style={{ backgroundColor: "#579ec0" }}
+onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#4b8fb0"}
+onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
           >
             {formOpen ? "Close" : "+ Add Patient"}
           </button>
@@ -160,8 +163,9 @@ function Patients() {
         </p>
       </div>
 
-      <TableWrapper>
-        <thead className="bg-gray-50 text-gray-600">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+  <TableWrapper>
+        <thead className="bg-gray-100 text-gray-700 border-b border-gray-200">
           <tr>
             <th className="p-4 text-left">First Name</th>
             <th className="p-4 text-left">Last Name</th>
@@ -197,6 +201,7 @@ function Patients() {
           ))}
         </tbody>
       </TableWrapper>
+      </div>
       {editingPatient && (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
     <div className="bg-white w-[520px] rounded-3xl p-8 shadow-2xl">

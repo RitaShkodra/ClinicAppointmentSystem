@@ -83,7 +83,28 @@ export const getStats = async (req, res) => {
       minute: "2-digit",
     }),
   }));
+const lastWeekStart = new Date(startOfWeek);
+lastWeekStart.setDate(startOfWeek.getDate() - 7);
 
+const lastWeekAppointments = await prisma.appointment.count({
+  where: {
+    dateTime: {
+      gte: lastWeekStart,
+      lt: startOfWeek,
+    },
+  },
+});
+
+const thisWeekCount = weekAppointments.length;
+
+const weeklyGrowth =
+  lastWeekAppointments > 0
+    ? Math.round(
+        ((thisWeekCount - lastWeekAppointments) /
+          lastWeekAppointments) *
+          100
+      )
+    : 0;
   /* ======================= */
 
   res.json({
@@ -95,5 +116,6 @@ export const getStats = async (req, res) => {
     cancelled,
     weekly,
     todayAppointments,
+    weeklyGrowth,
   });
 };
