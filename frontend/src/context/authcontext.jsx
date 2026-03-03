@@ -1,21 +1,51 @@
-import { createContext, useState } from "react";
+import { createContext, useState, useEffect } from "react";
+import { jwtDecode } from "jwt-decode";
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(
-    JSON.parse(localStorage.getItem("user")) || null
-  );
+  const [user, setUser] = useState(null);
 
+  /* =========================
+     Restore session on reload
+  ========================== */
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+
+    if (!token) return;
+
+    try {
+      const decoded = jwtDecode(token);
+
+      // check expiration
+      if (decoded.exp * 1000 < Date.now()) {
+        logout();
+        return;
+      }
+
+      setUser(decoded);
+    } catch (error) {
+      logout();
+    }
+  }, []);
+
+  /* =========================
+     LOGIN
+  ========================== */
   const login = (data) => {
-    setUser(data.user);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    localStorage.setItem("accessToken", data.accessToken);
+    const { accessToken } = data;
+
+    localStorage.setItem("accessToken", accessToken);
+
+    const decoded = jwtDecode(accessToken);
+    setUser(decoded);
   };
 
+  /* =========================
+     LOGOUT
+  ========================== */
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("user");
     localStorage.removeItem("accessToken");
   };
 

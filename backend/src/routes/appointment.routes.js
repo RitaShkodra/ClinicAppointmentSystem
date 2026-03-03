@@ -13,49 +13,54 @@ import { authorizeRoles } from "../middlewares/role.middleware.js";
 const router = express.Router();
 
 /*
-  CREATE → STAFF + ADMIN
+  CREATE
+  ADMIN + RECEPTIONIST + PATIENT
 */
 router.post(
   "/",
   authMiddleware,
-  authorizeRoles("ADMIN", "STAFF"),
-  create
+  authorizeRoles("ADMIN", "RECEPTIONIST", "PATIENT"),
+  create,
 );
 
 /*
-  GET ALL → STAFF + ADMIN
+  GET ALL
+  ADMIN + RECEPTIONIST
+  (Doctor & Patient will have filtered endpoints later)
 */
 router.get(
   "/",
   authMiddleware,
-  authorizeRoles("ADMIN", "STAFF"),
-  getAll
+  authorizeRoles("ADMIN", "RECEPTIONIST"),
+  getAll,
 );
 
 /*
-  UPDATE STATUS → STAFF + ADMIN
+  UPDATE STATUS
+  ADMIN + DOCTOR
 */
 router.patch(
   "/:id/status",
   authMiddleware,
-  authorizeRoles("ADMIN", "STAFF"),
-  updateStatus
+  authorizeRoles("ADMIN", "DOCTOR"),
+  updateStatus,
 );
 
 /*
-  DELETE → ADMIN ONLY
+  UPDATE FULL APPOINTMENT
+  ADMIN + RECEPTIONIST
 */
-router.delete(
-  "/:id",
-  authMiddleware,
-  authorizeRoles("ADMIN"),
-  remove
-);
 router.put(
   "/:id",
   authMiddleware,
-  authorizeRoles("ADMIN", "STAFF"),
-  update
+  authorizeRoles("ADMIN", "RECEPTIONIST"),
+  update,
 );
+
+/*
+  DELETE
+  ADMIN ONLY
+*/
+router.delete("/:id", authMiddleware, authorizeRoles("ADMIN"), remove);
 
 export default router;

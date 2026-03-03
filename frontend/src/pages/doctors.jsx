@@ -1,5 +1,5 @@
 import { useEffect, useState, useContext } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import { AuthContext } from "../context/authcontext";
 
 import PageHeader from "../components/pageheader";
@@ -30,46 +30,28 @@ function Doctors() {
     email: "",
   });
 
-  const token = localStorage.getItem("accessToken");
+  /* =========================
+     HANDLE INPUT CHANGE
+  ========================= */
+  const handleChange = (e) => {
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  };
 
   const fetchDoctors = async () => {
-    const res = await axios.get("http://localhost:5000/api/doctors", {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    setDoctors(res.data);
+    try {
+      const res = await api.get("/doctors");
+      setDoctors(res.data);
+    } catch {
+      setError("Failed to load doctors");
+    }
   };
 
   useEffect(() => {
     fetchDoctors();
   }, []);
-
-  useEffect(() => {
-    if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(""), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [successMessage]);
-
-  useEffect(() => {
-    if (scheduleDoctor?.availability) {
-      try {
-        setAvailability(JSON.parse(scheduleDoctor.availability));
-      } catch {
-        setAvailability({});
-      }
-    } else if (scheduleDoctor) {
-      setAvailability({
-        Monday: null,
-        Tuesday: null,
-        Wednesday: null,
-        Thursday: null,
-        Friday: null,
-      });
-    }
-  }, [scheduleDoctor]);
-
-  const handleChange = (e) =>
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -77,30 +59,15 @@ function Doctors() {
 
     try {
       if (editingDoctor) {
-        await axios.put(
-          `http://localhost:5000/api/doctors/${editingDoctor.id}`,
-          form,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        setSuccessMessage("Doctor updated successfully");
+        await api.put(`/doctors/${editingDoctor.id}`, form);
       } else {
-        await axios.post("http://localhost:5000/api/doctors", form, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setSuccessMessage("Doctor created successfully");
+        await api.post("/doctors", form);
       }
 
-      setForm({
-        firstName: "",
-        lastName: "",
-        specialization: "",
-        phone: "",
-        email: "",
-      });
-
-      setEditingDoctor(null);
-      setFormOpen(false);
       fetchDoctors();
+      setFormOpen(false);
+      setEditingDoctor(null);
+      setSuccessMessage("Operation successful");
     } catch {
       setError("Operation failed");
     }
@@ -110,14 +77,10 @@ function Doctors() {
     if (!deleteTarget) return;
 
     try {
-      await axios.delete(
-        `http://localhost:5000/api/doctors/${deleteTarget.id}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setSuccessMessage("Doctor deleted successfully");
-      setDeleteTarget(null);
+      await api.delete(`/doctors/${deleteTarget.id}`);
       fetchDoctors();
+      setDeleteTarget(null);
+      setSuccessMessage("Doctor deleted successfully");
     } catch {
       setError("Failed to delete doctor");
     }
@@ -125,13 +88,9 @@ function Doctors() {
 
   const handleSaveSchedule = async () => {
     try {
-      await axios.put(
-        `http://localhost:5000/api/doctors/${scheduleDoctor.id}`,
-        {
-          availability: JSON.stringify(availability),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put(`/doctors/${scheduleDoctor.id}`, {
+        availability: JSON.stringify(availability),
+      });
 
       setSuccessMessage("Schedule updated successfully");
       setScheduleDoctor(null);
@@ -144,7 +103,7 @@ function Doctors() {
   const filtered = doctors.filter((d) =>
     `${d.firstName} ${d.lastName} ${d.specialization} ${d.email || ""}`
       .toLowerCase()
-      .includes(searchTerm.toLowerCase())
+      .includes(searchTerm.toLowerCase()),
   );
 
   return (
@@ -178,9 +137,7 @@ function Doctors() {
               setFormOpen(!formOpen);
             }}
             className="text-white px-5 py-2 rounded-lg transition shadow-sm"
-style={{ backgroundColor: "#579ec0" }}
-onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#4b8fb0"}
-onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
+            style={{ backgroundColor: "#579ec0" }}
           >
             {formOpen ? "Close" : "+ Add Doctor"}
           </button>
@@ -209,7 +166,7 @@ onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
       </div>
 
       <TableWrapper>
-       <thead className="bg-gray-100 text-gray-700 border-b border-gray-200">
+        <thead className="bg-gray-100 text-gray-700 border-b border-gray-200">
           <tr>
             <th className="p-4 text-left">First Name</th>
             <th className="p-4 text-left">Last Name</th>
@@ -228,7 +185,6 @@ onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
               <td className="p-4">{doctor.specialization}</td>
               <td className="p-4">{doctor.phone}</td>
               <td className="p-4">{doctor.email}</td>
-
               <td className="p-4">
                 <div className="flex items-center gap-3">
                   <ActionButtons
@@ -247,7 +203,14 @@ onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
                   />
 
                   <button
-                    onClick={() => setScheduleDoctor(doctor)}
+                    onClick={() => {
+                      setScheduleDoctor(doctor);
+                      setAvailability(
+                        doctor.availability
+                          ? JSON.parse(doctor.availability)
+                          : {},
+                      );
+                    }}
                     className="text-sm px-3 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
                   >
                     Manage Schedule
@@ -259,8 +222,9 @@ onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
         </tbody>
       </TableWrapper>
 
+      {/* EDIT MODAL */}
       {editingDoctor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
           <div className="bg-white w-[520px] rounded-3xl p-8 shadow-2xl">
             <h3 className="text-xl font-semibold mb-6">Edit Doctor</h3>
             <DoctorFormCard
@@ -274,6 +238,7 @@ onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
         </div>
       )}
 
+      {/* DELETE MODAL */}
       {deleteTarget && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
           <div className="bg-white w-[420px] rounded-3xl p-8 shadow-2xl">
@@ -281,7 +246,6 @@ onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
             <p className="text-sm text-gray-500 mb-6">
               Are you sure you want to delete Dr. {deleteTarget.lastName}?
             </p>
-
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setDeleteTarget(null)}
@@ -289,7 +253,6 @@ onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
               >
                 Cancel
               </button>
-
               <button
                 onClick={handleDelete}
                 className="px-5 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 transition"
@@ -301,6 +264,7 @@ onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
         </div>
       )}
 
+      {/* SCHEDULE MODAL */}
       {scheduleDoctor && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
           <div className="bg-white w-[560px] rounded-3xl p-8 shadow-2xl">
@@ -309,86 +273,82 @@ onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
             </h3>
 
             <div className="space-y-5">
-              {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(day => (
-                <div key={day} className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700 w-28">
-                    {day}
-                  </span>
+              {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map(
+                (day) => (
+                  <div key={day} className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700 w-28">
+                      {day}
+                    </span>
 
-                  {availability[day] ? (
-                    <div className="flex gap-3 items-center">
-                      <input
-                        type="time"
-                        value={availability[day].start}
-                        onChange={(e) =>
-                          setAvailability({
-                            ...availability,
-                            [day]: {
-                              ...availability[day],
-                              start: e.target.value
-                            }
-                          })
-                        }
-                        className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:ring-4 focus:ring-[#b0d2db]/40 outline-none"
-                      />
-
-                      <span className="text-gray-400">–</span>
-
-                      <input
-                        type="time"
-                        value={availability[day].end}
-                        onChange={(e) =>
-                          setAvailability({
-                            ...availability,
-                            [day]: {
-                              ...availability[day],
-                              end: e.target.value
-                            }
-                          })
-                        }
-                        className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:ring-4 focus:ring-[#b0d2db]/40 outline-none"
-                      />
-
+                    {availability[day] ? (
+                      <div className="flex gap-3 items-center">
+                        <input
+                          type="time"
+                          value={availability[day].start}
+                          onChange={(e) =>
+                            setAvailability({
+                              ...availability,
+                              [day]: {
+                                ...availability[day],
+                                start: e.target.value,
+                              },
+                            })
+                          }
+                          className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm"
+                        />
+                        <span className="text-gray-400">–</span>
+                        <input
+                          type="time"
+                          value={availability[day].end}
+                          onChange={(e) =>
+                            setAvailability({
+                              ...availability,
+                              [day]: {
+                                ...availability[day],
+                                end: e.target.value,
+                              },
+                            })
+                          }
+                          className="border border-gray-200 rounded-xl px-3 py-1.5 text-sm"
+                        />
+                        <button
+                          onClick={() =>
+                            setAvailability({ ...availability, [day]: null })
+                          }
+                          className="text-xs px-3 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
+                        >
+                          OFF
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         onClick={() =>
-                          setAvailability({ ...availability, [day]: null })
+                          setAvailability({
+                            ...availability,
+                            [day]: { start: "09:00", end: "17:00" },
+                          })
                         }
-                        className="text-xs px-3 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition"
+                        className="text-sm px-3 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
                       >
-                        OFF
+                        Set Hours
                       </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() =>
-                        setAvailability({
-                          ...availability,
-                          [day]: { start: "09:00", end: "17:00" }
-                        })
-                      }
-                      className="text-sm px-3 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
-                    >
-                      Set Hours
-                    </button>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                ),
+              )}
             </div>
 
             <div className="flex justify-end gap-3 mt-8">
               <button
                 onClick={() => setScheduleDoctor(null)}
-                className="px-5 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+                className="px-5 py-2 rounded-xl border border-gray-200"
               >
                 Cancel
               </button>
-
               <button
                 onClick={handleSaveSchedule}
-                className="text-white px-5 py-2 rounded-xl transition shadow-sm"
-style={{ backgroundColor: "#579ec0" }}
-onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "#4b8fb0"}
-onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "#579ec0"}
+                className="text-white px-5 py-2 rounded-xl"
+                style={{ backgroundColor: "#579ec0" }}
               >
                 Save Schedule
               </button>

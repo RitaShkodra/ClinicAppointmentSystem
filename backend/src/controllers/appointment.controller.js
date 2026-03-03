@@ -16,11 +16,36 @@ import { buildAppointmentEmail } from "../utils/emailTemplates.js";
 
 export const create = async (req, res) => {
   try {
-    const { dateTime, notes, patientId, doctorId } = req.body;
+    let { dateTime, notes, patientId, doctorId } = req.body;
 
-    if (!dateTime || !patientId || !doctorId) {
+    if (!dateTime || !doctorId) {
       return res.status(400).json({
-        message: "dateTime, patientId and doctorId are required",
+        message: "dateTime and doctorId are required",
+      });
+    }
+
+    // 🟡 If PATIENT, force patientId to their own
+    if (req.user.role === "PATIENT") {
+      const patient = await prisma.patient.findUnique({
+        where: { userId: req.user.id },
+      });
+
+      if (!patient) {
+        return res.status(403).json({
+          message: "Patient profile not found",
+        });
+      }
+
+      patientId = patient.id;
+    }
+
+    // 🟢 ADMIN & RECEPTIONIST must provide patientId
+    if (
+      (req.user.role === "ADMIN" || req.user.role === "RECEPTIONIST") &&
+      !patientId
+    ) {
+      return res.status(400).json({
+        message: "patientId is required",
       });
     }
 
@@ -31,26 +56,20 @@ export const create = async (req, res) => {
       doctorId,
     });
 
-    // ✅ SEND EMAIL AFTER CREATION
-   await sendEmail({
-  to: appointment.patient.email,
-  subject: "Appointment Confirmed",
-  html: buildAppointmentEmail({
-    type: "CREATED",
-    appointment,
-  }),
-});
+    await sendEmail({
+      to: appointment.patient.email,
+      subject: "Appointment Confirmed",
+      html: buildAppointmentEmail({
+        type: "CREATED",
+        appointment,
+      }),
+    });
 
     res.status(201).json(appointment);
-
   } catch (error) {
-    console.error(error);
-    res.status(400).json({
-      message: error.message,
-    });
+    res.status(400).json({ message: error.message });
   }
 };
-
 
 /* ============================
    GET ALL APPOINTMENTS
@@ -67,7 +86,6 @@ export const getAll = async (req, res) => {
   }
 };
 
-
 /* ============================
    UPDATE STATUS
 ============================ */
@@ -82,31 +100,46 @@ export const updateStatus = async (req, res) => {
       });
     }
 
-    const appointment = await updateAppointmentStatus(
-      req.params.id,
-      status
-    );
-
-    // ✅ SEND EMAIL AFTER STATUS UPDATE
-    await sendEmail({
-  to: appointment.patient.email,
-  subject: "Appointment Status Updated",
-  html: buildAppointmentEmail({
-    type: "STATUS",
-    appointment,
-  }),
-});
-
-    res.json(appointment);
-
-  } catch (error) {
-    console.error(error);
-    res.status(400).json({
-      message: error.message,
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: Number(req.params.id) },
+      include: { doctor: true, patient: true },
     });
+
+    if (!appointment) {
+      return res.status(404).json({
+        message: "Appointment not found",
+      });
+    }
+
+    // 🔵 Doctor can update ONLY their own appointment
+    if (req.user.role === "DOCTOR") {
+      const doctor = await prisma.doctor.findUnique({
+        where: { userId: req.user.id },
+      });
+
+      if (!doctor || doctor.id !== appointment.doctorId) {
+        return res.status(403).json({
+          message: "You can only update your own appointments",
+        });
+      }
+    }
+
+    const updated = await updateAppointmentStatus(req.params.id, status);
+
+    await sendEmail({
+      to: updated.patient.email,
+      subject: "Appointment Status Updated",
+      html: buildAppointmentEmail({
+        type: "STATUS",
+        appointment: updated,
+      }),
+    });
+
+    res.json(updated);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 };
-
 
 /* ============================
    DELETE APPOINTMENT

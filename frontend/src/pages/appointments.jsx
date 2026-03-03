@@ -125,8 +125,9 @@ function Appointments() {
     return (
       availability[weekdayLower] ||
       availability[weekdayLower.toUpperCase()] ||
-      availability[weekdayLower.charAt(0).toUpperCase() +
-        weekdayLower.slice(1)] ||
+      availability[
+        weekdayLower.charAt(0).toUpperCase() + weekdayLower.slice(1)
+      ] ||
       null
     );
   };
@@ -171,16 +172,16 @@ function Appointments() {
   }, [editForm.doctorId, editForm.date, doctors]);
 
   const isCreateDoctorOffDay = Boolean(
-    form.doctorId && form.date && createTimeSlots.length === 0
+    form.doctorId && form.date && createTimeSlots.length === 0,
   );
 
   const isEditDoctorOffDay = Boolean(
     editForm.doctorId &&
-      editForm.date &&
-      editTimeSlots.length === 0 &&
-      (editForm.doctorId !== String(editTarget?.doctor?.id) ||
-        editForm.date !==
-          new Date(editTarget?.dateTime).toISOString().slice(0, 10))
+    editForm.date &&
+    editTimeSlots.length === 0 &&
+    (editForm.doctorId !== String(editTarget?.doctor?.id) ||
+      editForm.date !==
+        new Date(editTarget?.dateTime).toISOString().slice(0, 10)),
   );
 
   const isPastDateTime = (date, time) => {
@@ -205,7 +206,7 @@ function Appointments() {
 
   const isSlotBlockedFor = (
     { doctorId, patientId, date, slot },
-    excludeAppointmentId = null
+    excludeAppointmentId = null,
   ) => {
     if (!doctorId || !date || !slot) return false;
 
@@ -213,7 +214,8 @@ function Appointments() {
     if (Number.isNaN(selected.getTime())) return false;
 
     return appointments.some((appt) => {
-      if (excludeAppointmentId && appt.id === excludeAppointmentId) return false;
+      if (excludeAppointmentId && appt.id === excludeAppointmentId)
+        return false;
       if (appt.status === "CANCELLED") return false;
 
       const apptTime = new Date(appt.dateTime);
@@ -261,7 +263,7 @@ function Appointments() {
 
     if (blocked) {
       setError(
-        "This slot is blocked (doctor or patient has a nearby appointment)."
+        "This slot is blocked (doctor or patient has a nearby appointment).",
       );
       return;
     }
@@ -275,7 +277,7 @@ function Appointments() {
           notes: form.notes,
           dateTime: `${form.date}T${form.time}`,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setSuccessMessage("Appointment created successfully");
@@ -305,13 +307,13 @@ function Appointments() {
       await axios.patch(
         `http://localhost:5000/api/appointments/${id}/status`,
         { status },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       setSuccessMessage("Status updated successfully");
 
       setAppointments((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status } : a))
+        prev.map((a) => (a.id === id ? { ...a, status } : a)),
       );
     } catch {
       setError("Failed to update status");
@@ -327,7 +329,7 @@ function Appointments() {
         `http://localhost:5000/api/appointments/${deleteTarget.id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
 
       setAppointments((prev) => prev.filter((a) => a.id !== deleteTarget.id));
@@ -390,12 +392,12 @@ function Appointments() {
         date: editForm.date,
         slot: editForm.time,
       },
-      editTarget.id
+      editTarget.id,
     );
 
     if (blocked) {
       setError(
-        "This slot is blocked (doctor or patient has a nearby appointment)."
+        "This slot is blocked (doctor or patient has a nearby appointment).",
       );
       return;
     }
@@ -409,13 +411,13 @@ function Appointments() {
           notes: editForm.notes,
           dateTime: `${editForm.date}T${editForm.time}`,
         },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
 
       const updated = res.data.appointment || res.data;
 
       setAppointments((prev) =>
-        prev.map((a) => (a.id === editTarget.id ? updated : a))
+        prev.map((a) => (a.id === editTarget.id ? updated : a)),
       );
       setSuccessMessage("Appointment updated successfully");
       closeEdit();
@@ -428,7 +430,7 @@ function Appointments() {
     return appointments.filter((a) =>
       `${a.patient.firstName} ${a.patient.lastName} ${a.doctor.firstName} ${a.doctor.lastName}`
         .toLowerCase()
-        .includes(searchTerm.toLowerCase())
+        .includes(searchTerm.toLowerCase()),
     );
   }, [appointments, searchTerm]);
 
@@ -476,7 +478,7 @@ function Appointments() {
     switch (status) {
       case "PENDING":
         return "bg-yellow-100 text-yellow-700";
-      case "APPROVED":
+      case "CONFIRMED":
         return "bg-blue-100 text-blue-700";
       case "COMPLETED":
         return "bg-green-100 text-green-700";
@@ -487,7 +489,7 @@ function Appointments() {
     }
   };
 
-  const canEdit = user?.role === "ADMIN" || user?.role === "STAFF";
+  const canManage = user?.role === "ADMIN" || user?.role === "RECEPTIONIST";
 
   const formatDateHeader = (date) =>
     new Date(date).toLocaleDateString("en-US", {
@@ -523,8 +525,9 @@ function Appointments() {
 
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-lg font-semibold text-gray-800">Appointments</h2>
-            
+            <h2 className="text-lg font-semibold text-gray-800">
+              Appointments
+            </h2>
           </div>
 
           <button
@@ -536,8 +539,12 @@ function Appointments() {
             style={{
               backgroundColor: ACCENT,
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = ACCENT_DARK)}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = ACCENT)}
+            onMouseEnter={(e) =>
+              (e.currentTarget.style.backgroundColor = ACCENT_DARK)
+            }
+            onMouseLeave={(e) =>
+              (e.currentTarget.style.backgroundColor = ACCENT)
+            }
           >
             {showCreate ? "Cancel" : "+ New Appointment"}
           </button>
@@ -553,7 +560,6 @@ function Appointments() {
                 <p className="text-sm font-semibold text-gray-700">
                   Create a new appointment
                 </p>
-                
               </div>
               <p className="text-sm text-gray-600 mt-1">
                 Choose patient, doctor, date and a valid time slot.
@@ -665,16 +671,14 @@ function Appointments() {
                     ? "bg-gray-300 text-gray-500 cursor-not-allowed"
                     : "text-white"
                 }`}
-                style={
-                  isCreatePast
-                    ? undefined
-                    : { backgroundColor: ACCENT }
-                }
+                style={isCreatePast ? undefined : { backgroundColor: ACCENT }}
                 onMouseEnter={(e) => {
-                  if (!isCreatePast) e.currentTarget.style.backgroundColor = ACCENT_DARK;
+                  if (!isCreatePast)
+                    e.currentTarget.style.backgroundColor = ACCENT_DARK;
                 }}
                 onMouseLeave={(e) => {
-                  if (!isCreatePast) e.currentTarget.style.backgroundColor = ACCENT;
+                  if (!isCreatePast)
+                    e.currentTarget.style.backgroundColor = ACCENT;
                 }}
               >
                 Create Appointment
@@ -683,13 +687,13 @@ function Appointments() {
           </div>
         )}
 
-      <div className="flex justify-between items-center mb-6">
-  <SearchInput
-    value={searchTerm}
-    onChange={(e) => setSearchTerm(e.target.value)}
-    placeholder="Search..."
-  />
-</div>
+        <div className="flex justify-between items-center mb-6">
+          <SearchInput
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search..."
+          />
+        </div>
 
         {/* UPCOMING / TODAY */}
         <div className="space-y-10">
@@ -742,7 +746,7 @@ function Appointments() {
                               {
                                 hour: "2-digit",
                                 minute: "2-digit",
-                              }
+                              },
                             )}
                           </p>
 
@@ -756,7 +760,7 @@ function Appointments() {
                         <div className="flex gap-3 items-center">
                           <span
                             className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusColor(
-                              appointment.status
+                              appointment.status,
                             )}`}
                           >
                             {appointment.status}
@@ -770,7 +774,7 @@ function Appointments() {
                             className="text-sm border border-gray-200 rounded px-2 py-1"
                           >
                             <option value="PENDING">PENDING</option>
-                            <option value="APPROVED">APPROVED</option>
+                            <option value="CONFIRMED">CONFIRMED</option>
                             <option value="COMPLETED">COMPLETED</option>
                             <option value="CANCELLED">CANCELLED</option>
                           </select>
@@ -795,10 +799,10 @@ function Appointments() {
         {Object.keys(pastGroupedAppointments).length > 0 && (
           <div className="pt-2">
             <div className="mb-4">
-  <h2 className="text-sm font-semibold text-gray-700">
-    Past Appointments
-  </h2>
-</div>
+              <h2 className="text-sm font-semibold text-gray-700">
+                Past Appointments
+              </h2>
+            </div>
 
             <div className="space-y-10">
               {Object.entries(pastGroupedAppointments)
@@ -837,13 +841,12 @@ function Appointments() {
                             </p>
 
                             <p className="text-sm text-gray-400 mt-1">
-                              {new Date(appointment.dateTime).toLocaleTimeString(
-                                [],
-                                {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                }
-                              )}
+                              {new Date(
+                                appointment.dateTime,
+                              ).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
                             </p>
 
                             {appointment.notes && (
@@ -856,7 +859,7 @@ function Appointments() {
                           <div className="flex gap-3 items-center">
                             <span
                               className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusColor(
-                                appointment.status
+                                appointment.status,
                               )}`}
                             >
                               {appointment.status}
@@ -867,13 +870,13 @@ function Appointments() {
                               onChange={(e) =>
                                 handleStatusChange(
                                   appointment.id,
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               className="text-sm border border-gray-200 rounded px-2 py-1"
                             >
                               <option value="PENDING">PENDING</option>
-                              <option value="APPROVED">APPROVED</option>
+                              <option value="CONFIRMED">CONFIRMED</option>
                               <option value="COMPLETED">COMPLETED</option>
                               <option value="CANCELLED">CANCELLED</option>
                             </select>
@@ -941,7 +944,10 @@ function Appointments() {
                     value={editForm.date}
                     onChange={(e) => {
                       setError("");
-                      setEditForm((prev) => ({ ...prev, date: e.target.value }));
+                      setEditForm((prev) => ({
+                        ...prev,
+                        date: e.target.value,
+                      }));
                     }}
                     className="w-full rounded-xl px-4 py-2 border border-gray-200 outline-none transition focus:ring-2"
                   />
@@ -958,7 +964,10 @@ function Appointments() {
                     value={editForm.time}
                     onChange={(e) => {
                       setError("");
-                      setEditForm((prev) => ({ ...prev, time: e.target.value }));
+                      setEditForm((prev) => ({
+                        ...prev,
+                        time: e.target.value,
+                      }));
                     }}
                     className="w-full rounded-xl px-4 py-2 border border-gray-200 outline-none transition focus:ring-2"
                   >
@@ -974,7 +983,7 @@ function Appointments() {
                             date: editForm.date,
                             slot,
                           },
-                          editTarget.id
+                          editTarget.id,
                         )}
                       >
                         {slot}
@@ -1018,10 +1027,12 @@ function Appointments() {
                     }`}
                     style={isEditPast ? undefined : { backgroundColor: ACCENT }}
                     onMouseEnter={(e) => {
-                      if (!isEditPast) e.currentTarget.style.backgroundColor = ACCENT_DARK;
+                      if (!isEditPast)
+                        e.currentTarget.style.backgroundColor = ACCENT_DARK;
                     }}
                     onMouseLeave={(e) => {
-                      if (!isEditPast) e.currentTarget.style.backgroundColor = ACCENT;
+                      if (!isEditPast)
+                        e.currentTarget.style.backgroundColor = ACCENT;
                     }}
                   >
                     Save Changes
@@ -1049,11 +1060,13 @@ function Appointments() {
 
               <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-200">
                 <p className="text-sm font-medium text-gray-700">
-                  {deleteTarget.patient.firstName} {deleteTarget.patient.lastName}
+                  {deleteTarget.patient.firstName}{" "}
+                  {deleteTarget.patient.lastName}
                 </p>
 
                 <p className="text-xs text-gray-500">
-                  Dr. {deleteTarget.doctor.firstName} {deleteTarget.doctor.lastName}
+                  Dr. {deleteTarget.doctor.firstName}{" "}
+                  {deleteTarget.doctor.lastName}
                 </p>
 
                 <p className="text-xs text-gray-400 mt-1">

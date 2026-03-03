@@ -1,19 +1,27 @@
 generator client {
   provider = "prisma-client-js"
 }
-datasource db {
-  provider          = "sqlserver"
-  url               = env("DATABASE_URL")
-}
 
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
 
 model User {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
   password  String
-  role      String   @default("STAFF")
+  role      String   @default("RECEPTIONIST") // ADMIN | RECEPTIONIST | DOCTOR | PATIENT
   createdAt DateTime @default(now())
+  deletedAt DateTime?
+
+  doctorId  Int?
+  patientId Int?
+
+  doctor    Doctor?  @relation(fields: [doctorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  patient   Patient? @relation(fields: [patientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
   refreshTokens RefreshToken[]
 }
 
@@ -24,6 +32,9 @@ model Patient {
   phone     String
   email     String?  @unique
   createdAt DateTime @default(now())
+  deletedAt DateTime?
+
+  users     User[]   // one patient can technically have multiple users if needed
 
   appointments Appointment[]
 }
@@ -35,29 +46,35 @@ model Doctor {
   specialization  String
   email           String?  @unique
   phone           String?
-  availability  String?    
+  availability    String?
   createdAt       DateTime @default(now())
+  deletedAt       DateTime?
 
-  appointments Appointment[]
+  users           User[]   // doctor linked through user
+
+  appointments    Appointment[]
 }
 
 model Appointment {
   id        Int      @id @default(autoincrement())
   dateTime  DateTime
+  duration  Int      @default(30)
   status    String   @default("PENDING")
   notes     String?
   createdAt DateTime @default(now())
+  deletedAt DateTime?
 
-  patient   Patient @relation(fields: [patientId], references: [id])
   patientId Int
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  doctor    Doctor  @relation(fields: [doctorId], references: [id])
   doctorId  Int
+  doctor    Doctor   @relation(fields: [doctorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([dateTime])
   @@index([doctorId, dateTime])
   @@index([patientId, dateTime])
 }
+
 model RefreshToken {
   id        Int      @id @default(autoincrement())
   token     String   @unique

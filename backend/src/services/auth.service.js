@@ -3,9 +3,9 @@ import prisma from "../prisma.js";
 import jwt from "jsonwebtoken";
 import { config } from "../config.js";
 
+const ALLOWED_ROLES = ["ADMIN", "STAFF", "DOCTOR"];
 
-
-export const registerUser = async ({ name, email, password }) => {
+export const registerUser = async ({ name, email, password, role }) => {
   const existingUser = await prisma.user.findUnique({
     where: { email },
   });
@@ -16,12 +16,14 @@ export const registerUser = async ({ name, email, password }) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
 
+  const normalizedRole = ALLOWED_ROLES.includes(role) ? role : "STAFF";
+
   const user = await prisma.user.create({
     data: {
       name,
       email,
       password: hashedPassword,
-      role: "STAFF", 
+      role: normalizedRole,
     },
   });
 
@@ -32,8 +34,6 @@ export const registerUser = async ({ name, email, password }) => {
     role: user.role,
   };
 };
-
-
 
 export const loginUser = async ({ email, password }) => {
   const user = await prisma.user.findUnique({
@@ -50,35 +50,29 @@ export const loginUser = async ({ email, password }) => {
     throw new Error("Invalid credentials");
   }
 
-  
-
   const accessToken = jwt.sign(
     {
       userId: user.id,
       role: user.role,
+      doctorId: user.doctorId,
+      patientId: user.patientId,
     },
     config.jwtSecret,
     // { expiresIn: "15m" }
-    { expiresIn: "2h" }
+    { expiresIn: "2h" },
   );
-
-
 
   const refreshToken = jwt.sign(
     {
       userId: user.id,
     },
     config.jwtRefreshSecret,
-    { expiresIn: "7d" }
+    { expiresIn: "7d" },
   );
-
- 
 
   await prisma.refreshToken.deleteMany({
     where: { userId: user.id },
   });
-
-  
 
   await prisma.refreshToken.create({
     data: {

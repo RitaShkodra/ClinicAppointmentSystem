@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../utils/api";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -17,7 +17,7 @@ ChartJS.register(
   PointElement,
   LineElement,
   Tooltip,
-  Legend
+  Legend,
 );
 
 function Dashboard() {
@@ -32,12 +32,7 @@ function Dashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const token = localStorage.getItem("accessToken");
-
-        const res = await axios.get("http://localhost:5000/api/dashboard/stats", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
+        const res = await api.get("/dashboard/stats");
         setStats(res.data);
       } catch {
         console.error("Failed to load stats");
@@ -65,7 +60,9 @@ function Dashboard() {
       setAnimatedValues({
         patients: Math.floor((stats.totalPatients / steps) * currentStep),
         doctors: Math.floor((stats.totalDoctors / steps) * currentStep),
-        appointments: Math.floor((stats.totalAppointments / steps) * currentStep),
+        appointments: Math.floor(
+          (stats.totalAppointments / steps) * currentStep,
+        ),
       });
 
       if (currentStep >= steps) {
@@ -90,11 +87,7 @@ function Dashboard() {
   }
 
   if (!stats) {
-    return (
-      <div className="p-10 text-red-500">
-        Failed to load dashboard.
-      </div>
-    );
+    return <div className="p-10 text-red-500">Failed to load dashboard.</div>;
   }
 
   const completionRate =
@@ -142,9 +135,7 @@ function Dashboard() {
         {/* Header */}
         <div className="flex items-end justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">
-              Dashboard
-            </h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Dashboard</h1>
             <p className="text-gray-600">
               Analytics & insights for your clinic
             </p>
@@ -241,9 +232,21 @@ function Dashboard() {
                 </div>
 
                 <div className="hidden md:flex gap-2">
-                  <StatusPill label="Pending" value={stats.pending} type="pending" />
-                  <StatusPill label="Approved" value={stats.approved} type="approved" />
-                  <StatusPill label="Cancelled" value={stats.cancelled} type="cancelled" />
+                  <StatusPill
+                    label="Pending"
+                    value={stats.pending}
+                    type="pending"
+                  />
+                  <StatusPill
+                    label="Approved"
+                    value={stats.approved}
+                    type="approved"
+                  />
+                  <StatusPill
+                    label="Cancelled"
+                    value={stats.cancelled}
+                    type="cancelled"
+                  />
                 </div>
               </div>
             </div>
@@ -313,9 +316,21 @@ function Dashboard() {
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatusBigCard title="Pending" value={stats.pending} type="pending" />
-            <StatusBigCard title="Approved" value={stats.approved} type="approved" />
-            <StatusBigCard title="Cancelled" value={stats.cancelled} type="cancelled" />
+            <StatusBigCard
+              title="Pending"
+              value={stats.pending}
+              type="pending"
+            />
+            <StatusBigCard
+              title="Approved"
+              value={stats.approved}
+              type="approved"
+            />
+            <StatusBigCard
+              title="Cancelled"
+              value={stats.cancelled}
+              type="cancelled"
+            />
           </div>
         </div>
       </div>
@@ -327,7 +342,9 @@ function Dashboard() {
 
 function KpiCard({ title, value, hint, accent, dot }) {
   return (
-    <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-6 ring-1 ${accent}`}>
+    <div
+      className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-6 ring-1 ${accent}`}
+    >
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-700">{title}</p>
         <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
