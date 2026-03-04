@@ -11,6 +11,16 @@ import PatientFormCard from "../components/patientcard";
 function Patients() {
   const { user } = useContext(AuthContext);
 
+  const canViewPatients =
+    user?.role === "ADMIN" ||
+    user?.role === "RECEPTIONIST" ||
+    user?.role === "DOCTOR";
+
+  const canManagePatients =
+    user?.role === "ADMIN" || user?.role === "RECEPTIONIST";
+
+  const canDeletePatient = user?.role === "ADMIN";
+
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -28,7 +38,9 @@ function Patients() {
   });
 
   useEffect(() => {
-    fetchPatients();
+    if (canViewPatients) {
+      fetchPatients();
+    }
   }, []);
 
   useEffect(() => {
@@ -37,6 +49,14 @@ function Patients() {
       return () => clearTimeout(timer);
     }
   }, [successMessage]);
+
+  if (!canViewPatients) {
+    return (
+      <div className="p-10 text-gray-500">
+        You do not have permission to view this page.
+      </div>
+    );
+  }
 
   const fetchPatients = async () => {
     try {
@@ -53,6 +73,8 @@ function Patients() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!canManagePatients) return;
 
     try {
       if (editingPatient) {
@@ -79,7 +101,7 @@ function Patients() {
   };
 
   const handleDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget || !canDeletePatient) return;
 
     try {
       await api.delete(`/patients/${deleteTarget.id}`);
@@ -133,7 +155,8 @@ function Patients() {
           </button>
         </div>
       )}
-      {formOpen && (
+
+      {formOpen && canManagePatients && (
         <PatientFormCard
           editingPatient={null}
           form={form}
@@ -167,6 +190,7 @@ function Patients() {
               <th className="p-4 text-left">Actions</th>
             </tr>
           </thead>
+
           <tbody>
             {filtered.map((patient) => (
               <tr key={patient.id} className="hover:bg-gray-50">
@@ -174,26 +198,30 @@ function Patients() {
                 <td className="p-4">{patient.lastName}</td>
                 <td className="p-4">{patient.phone}</td>
                 <td className="p-4">{patient.email}</td>
+
                 <td className="p-4">
-                  <ActionButtons
-                    onEdit={() => {
-                      setEditingPatient(patient);
-                      setForm({
-                        firstName: patient.firstName,
-                        lastName: patient.lastName,
-                        phone: patient.phone || "",
-                        email: patient.email || "",
-                      });
-                    }}
-                    onDelete={() => setDeleteTarget(patient)}
-                    showDelete={user?.role === "ADMIN"}
-                  />
+                  {canManagePatients && (
+                    <ActionButtons
+                      onEdit={() => {
+                        setEditingPatient(patient);
+                        setForm({
+                          firstName: patient.firstName,
+                          lastName: patient.lastName,
+                          phone: patient.phone || "",
+                          email: patient.email || "",
+                        });
+                      }}
+                      onDelete={() => setDeleteTarget(patient)}
+                      showDelete={canDeletePatient}
+                    />
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </TableWrapper>
       </div>
+
       {editingPatient && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
           <div className="bg-white w-[520px] rounded-3xl p-8 shadow-2xl">
@@ -211,6 +239,7 @@ function Patients() {
           </div>
         </div>
       )}
+
       {deleteTarget && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
           <div className="bg-white w-[420px] rounded-3xl p-8 shadow-2xl">

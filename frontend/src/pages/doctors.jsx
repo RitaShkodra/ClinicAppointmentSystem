@@ -11,6 +11,16 @@ import DoctorFormCard from "../components/doctorcard";
 function Doctors() {
   const { user } = useContext(AuthContext);
 
+  const canViewDoctors =
+    user?.role === "ADMIN" ||
+    user?.role === "RECEPTIONIST" ||
+    user?.role === "DOCTOR";
+
+  const canManageDoctors =
+    user?.role === "ADMIN" || user?.role === "RECEPTIONIST";
+
+  const canDeleteDoctor = user?.role === "ADMIN";
+
   const [doctors, setDoctors] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -30,9 +40,6 @@ function Doctors() {
     email: "",
   });
 
-  /* =========================
-     HANDLE INPUT CHANGE
-  ========================= */
   const handleChange = (e) => {
     setForm((prev) => ({
       ...prev,
@@ -50,8 +57,16 @@ function Doctors() {
   };
 
   useEffect(() => {
-    fetchDoctors();
+    if (canViewDoctors) fetchDoctors();
   }, []);
+
+  if (!canViewDoctors) {
+    return (
+      <div className="p-10 text-gray-500">
+        You do not have permission to view this page.
+      </div>
+    );
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -122,7 +137,7 @@ function Doctors() {
         </div>
       )}
 
-      {user?.role === "ADMIN" && (
+      {canManageDoctors && (
         <div className="flex justify-end mb-6">
           <button
             onClick={() => {
@@ -144,7 +159,7 @@ function Doctors() {
         </div>
       )}
 
-      {formOpen && (
+      {formOpen && canManageDoctors && (
         <DoctorFormCard
           editingDoctor={null}
           form={form}
@@ -187,34 +202,38 @@ function Doctors() {
               <td className="p-4">{doctor.email}</td>
               <td className="p-4">
                 <div className="flex items-center gap-3">
-                  <ActionButtons
-                    onEdit={() => {
-                      setEditingDoctor(doctor);
-                      setForm({
-                        firstName: doctor.firstName,
-                        lastName: doctor.lastName,
-                        specialization: doctor.specialization,
-                        phone: doctor.phone || "",
-                        email: doctor.email || "",
-                      });
-                    }}
-                    onDelete={() => setDeleteTarget(doctor)}
-                    showDelete={user?.role === "ADMIN"}
-                  />
+                  {canManageDoctors && (
+                    <ActionButtons
+                      onEdit={() => {
+                        setEditingDoctor(doctor);
+                        setForm({
+                          firstName: doctor.firstName,
+                          lastName: doctor.lastName,
+                          specialization: doctor.specialization,
+                          phone: doctor.phone || "",
+                          email: doctor.email || "",
+                        });
+                      }}
+                      onDelete={() => setDeleteTarget(doctor)}
+                      showDelete={canDeleteDoctor}
+                    />
+                  )}
 
-                  <button
-                    onClick={() => {
-                      setScheduleDoctor(doctor);
-                      setAvailability(
-                        doctor.availability
-                          ? JSON.parse(doctor.availability)
-                          : {},
-                      );
-                    }}
-                    className="text-sm px-3 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
-                  >
-                    Manage Schedule
-                  </button>
+                  {canManageDoctors && (
+                    <button
+                      onClick={() => {
+                        setScheduleDoctor(doctor);
+                        setAvailability(
+                          doctor.availability
+                            ? JSON.parse(doctor.availability)
+                            : {},
+                        );
+                      }}
+                      className="text-sm px-3 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition"
+                    >
+                      Manage Schedule
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>
@@ -222,7 +241,6 @@ function Doctors() {
         </tbody>
       </TableWrapper>
 
-      {/* EDIT MODAL */}
       {editingDoctor && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
           <div className="bg-white w-[520px] rounded-3xl p-8 shadow-2xl">
@@ -238,7 +256,6 @@ function Doctors() {
         </div>
       )}
 
-      {/* DELETE MODAL */}
       {deleteTarget && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
           <div className="bg-white w-[420px] rounded-3xl p-8 shadow-2xl">
@@ -264,7 +281,6 @@ function Doctors() {
         </div>
       )}
 
-      {/* SCHEDULE MODAL */}
       {scheduleDoctor && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
           <div className="bg-white w-[560px] rounded-3xl p-8 shadow-2xl">

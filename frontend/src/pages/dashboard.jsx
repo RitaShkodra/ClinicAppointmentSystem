@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../utils/api";
+import { useContext } from "react";
+import { AuthContext } from "../context/authcontext";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -23,11 +25,17 @@ ChartJS.register(
 function Dashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useContext(AuthContext);
+
   const [animatedValues, setAnimatedValues] = useState({
     patients: 0,
     doctors: 0,
     appointments: 0,
   });
+
+  const isAdmin = user?.role === "ADMIN";
+  const isReceptionist = user?.role === "RECEPTIONIST";
+  const canSeeAnalytics = isAdmin || isReceptionist;
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -44,7 +52,6 @@ function Dashboard() {
     fetchStats();
   }, []);
 
-  // Animated counters
   useEffect(() => {
     if (!stats) return;
 
@@ -132,6 +139,7 @@ function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="p-10 space-y-10 max-w-6xl mx-auto">
+
         {/* Header */}
         <div className="flex items-end justify-between gap-6">
           <div>
@@ -147,204 +155,196 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Top KPI row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <KpiCard
-            title="Total Patients"
-            value={animatedValues.patients}
-            hint="Active in system"
-            accent="ring-[#b0d2db]"
-            dot="bg-[#579ec0]"
-          />
-          <KpiCard
-            title="Total Doctors"
-            value={animatedValues.doctors}
-            hint="Registered doctors"
-            accent="ring-[#b0d2db]"
-            dot="bg-[#506063]"
-          />
-          <KpiCard
-            title="Total Appointments"
-            value={animatedValues.appointments}
-            hint="All-time bookings"
-            accent="ring-[#b0d2db]"
-            dot="bg-[#232b2a]"
-          />
-        </div>
+        {/* KPI row */}
+        {canSeeAnalytics && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <KpiCard
+              title="Total Patients"
+              value={animatedValues.patients}
+              hint="Active in system"
+              accent="ring-[#b0d2db]"
+              dot="bg-[#579ec0]"
+            />
+            <KpiCard
+              title="Total Doctors"
+              value={animatedValues.doctors}
+              hint="Registered doctors"
+              accent="ring-[#b0d2db]"
+              dot="bg-[#506063]"
+            />
+            <KpiCard
+              title="Total Appointments"
+              value={animatedValues.appointments}
+              hint="All-time bookings"
+              accent="ring-[#b0d2db]"
+              dot="bg-[#232b2a]"
+            />
+          </div>
+        )}
 
         {/* Insight + Completion */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Weekly Insight (good contrast + palette accent) */}
-          <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-700">
-                Weekly Insight
-              </h2>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
-                vs last week
-              </span>
-            </div>
+        {canSeeAnalytics && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-            <div className="mt-4">
-              <p className="text-4xl font-bold text-gray-900">
-                {stats.weeklyGrowth >= 0 ? "+" : ""}
-                {stats.weeklyGrowth}%
-              </p>
-              <p className="text-gray-600 mt-2">
-                Change in weekly appointments
-              </p>
-            </div>
-
-            <div className="mt-6 rounded-xl bg-[#daebed] border border-[#b0d2db] p-4">
-              <p className="text-sm text-gray-700">
-                Tip: keep an eye on days with spikes to avoid overbooking.
-              </p>
-            </div>
-          </div>
-
-          {/* Completion Rate */}
-          <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-700">
-                Completion Rate
-              </h2>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
-                Approved / Total
-              </span>
-            </div>
-
-            <div className="mt-5">
-              <div className="relative w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-                <div
-                  className="absolute left-0 top-0 h-full bg-[#579ec0] transition-all duration-1000"
-                  style={{ width: `${completionRate}%` }}
-                />
+            <div className="lg:col-span-1 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-700">
+                  Weekly Insight
+                </h2>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+                  vs last week
+                </span>
               </div>
 
-              <div className="mt-4 flex items-end justify-between">
-                <div>
-                  <div className="text-4xl font-bold text-gray-900">
-                    {completionRate}%
-                  </div>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Higher is better — indicates successful approvals.
-                  </p>
-                </div>
+              <div className="mt-4">
+                <p className="text-4xl font-bold text-gray-900">
+                  {stats.weeklyGrowth >= 0 ? "+" : ""}
+                  {stats.weeklyGrowth}%
+                </p>
+                <p className="text-gray-600 mt-2">
+                  Change in weekly appointments
+                </p>
+              </div>
 
-                <div className="hidden md:flex gap-2">
-                  <StatusPill
-                    label="Pending"
-                    value={stats.pending}
-                    type="pending"
-                  />
-                  <StatusPill
-                    label="Approved"
-                    value={stats.approved}
-                    type="approved"
-                  />
-                  <StatusPill
-                    label="Cancelled"
-                    value={stats.cancelled}
-                    type="cancelled"
-                  />
-                </div>
+              <div className="mt-6 rounded-xl bg-[#daebed] border border-[#b0d2db] p-4">
+                <p className="text-sm text-gray-700">
+                  Tip: keep an eye on days with spikes to avoid overbooking.
+                </p>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Weekly chart + Today */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Weekly Chart */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-semibold text-gray-700">
-                Weekly Appointments
-              </h2>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-[#daebed] text-gray-700 border border-[#b0d2db]">
-                last 7 days
-              </span>
-            </div>
-
-            <div className="rounded-xl border border-gray-100 p-3">
-              <Line data={chartData} options={chartOptions} />
-            </div>
-          </div>
-
-          {/* Today */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-            <div className="flex items-center justify-between mb-5">
-              <h2 className="text-sm font-semibold text-gray-700">
-                Today’s Appointments
-              </h2>
-              <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
-                {stats.todayAppointments?.length || 0} total
-              </span>
-            </div>
-
-            {stats.todayAppointments?.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-gray-200 p-6 text-gray-500">
-                No appointments today.
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-gray-700">
+                  Completion Rate
+                </h2>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+                  Approved / Total
+                </span>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {stats.todayAppointments?.map((appt) => (
+
+              <div className="mt-5">
+                <div className="relative w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
                   <div
-                    key={appt.id}
-                    className="flex justify-between items-center rounded-xl border border-gray-200 bg-white px-4 py-3 hover:bg-gray-50 transition"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {appt.patientName}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Dr. {appt.doctorName}
-                      </p>
+                    className="absolute left-0 top-0 h-full bg-[#579ec0] transition-all duration-1000"
+                    style={{ width: `${completionRate}%` }}
+                  />
+                </div>
+
+                <div className="mt-4 flex items-end justify-between">
+                  <div>
+                    <div className="text-4xl font-bold text-gray-900">
+                      {completionRate}%
                     </div>
-                    <p className="text-sm text-gray-500">{appt.time}</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Higher is better — indicates successful approvals.
+                    </p>
                   </div>
-                ))}
+
+                  <div className="hidden md:flex gap-2">
+                    <StatusPill label="Pending" value={stats.pending} type="pending" />
+                    <StatusPill label="Approved" value={stats.approved} type="approved" />
+                    <StatusPill label="Cancelled" value={stats.cancelled} type="cancelled" />
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Status Overview (keep original status colors!) */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-          <h2 className="text-sm font-semibold text-gray-700 mb-5">
-            Status Overview
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StatusBigCard
-              title="Pending"
-              value={stats.pending}
-              type="pending"
-            />
-            <StatusBigCard
-              title="Approved"
-              value={stats.approved}
-              type="approved"
-            />
-            <StatusBigCard
-              title="Cancelled"
-              value={stats.cancelled}
-              type="cancelled"
-            />
           </div>
-        </div>
+        )}
+
+        {/* Weekly chart */}
+        {canSeeAnalytics && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <div className="flex items-center justify-between mb-5">
+                <h2 className="text-sm font-semibold text-gray-700">
+                  Weekly Appointments
+                </h2>
+                <span className="text-xs px-2.5 py-1 rounded-full bg-[#daebed] text-gray-700 border border-[#b0d2db]">
+                  last 7 days
+                </span>
+              </div>
+
+              <div className="rounded-xl border border-gray-100 p-3">
+                <Line data={chartData} options={chartOptions} />
+              </div>
+            </div>
+
+            {/* Today */}
+            <TodayAppointments stats={stats} />
+
+          </div>
+        )}
+
+        {!canSeeAnalytics && (
+          <TodayAppointments stats={stats} />
+        )}
+
+        {/* Status Overview */}
+        {canSeeAnalytics && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <h2 className="text-sm font-semibold text-gray-700 mb-5">
+              Status Overview
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <StatusBigCard title="Pending" value={stats.pending} type="pending" />
+              <StatusBigCard title="Approved" value={stats.approved} type="approved" />
+              <StatusBigCard title="Cancelled" value={stats.cancelled} type="cancelled" />
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
 }
 
-/* ===== Components ===== */
+function TodayAppointments({ stats }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-5">
+        <h2 className="text-sm font-semibold text-gray-700">
+          Today’s Appointments
+        </h2>
+        <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
+          {stats.todayAppointments?.length || 0} total
+        </span>
+      </div>
+
+      {stats.todayAppointments?.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-200 p-6 text-gray-500">
+          No appointments today.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {stats.todayAppointments?.map((appt) => (
+            <div
+              key={appt.id}
+              className="flex justify-between items-center rounded-xl border border-gray-200 bg-white px-4 py-3 hover:bg-gray-50 transition"
+            >
+              <div>
+                <p className="font-medium text-gray-900">{appt.patientName}</p>
+                <p className="text-sm text-gray-600">
+                  Dr. {appt.doctorName}
+                </p>
+              </div>
+              <p className="text-sm text-gray-500">{appt.time}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Components unchanged */
 
 function KpiCard({ title, value, hint, accent, dot }) {
   return (
-    <div
-      className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-6 ring-1 ${accent}`}
-    >
+    <div className={`bg-white rounded-2xl border border-gray-200 shadow-sm p-6 ring-1 ${accent}`}>
       <div className="flex items-center justify-between">
         <p className="text-sm font-semibold text-gray-700">{title}</p>
         <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />

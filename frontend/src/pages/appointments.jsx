@@ -48,6 +48,11 @@ function Appointments() {
   const NEUTRAL_DOT = "#506063";
   const NEUTRAL_DOT_2 = "#232b2a";
 
+  // ✅ Roles
+  const canManage = user?.role === "ADMIN" || user?.role === "RECEPTIONIST";
+  const canEdit = canManage; // keep naming used in JSX below
+  const canChangeStatus = canManage;
+
   const resetForm = () => {
     setForm({
       patientId: "",
@@ -125,9 +130,7 @@ function Appointments() {
     return (
       availability[weekdayLower] ||
       availability[weekdayLower.toUpperCase()] ||
-      availability[
-        weekdayLower.charAt(0).toUpperCase() + weekdayLower.slice(1)
-      ] ||
+      availability[weekdayLower.charAt(0).toUpperCase() + weekdayLower.slice(1)] ||
       null
     );
   };
@@ -172,16 +175,16 @@ function Appointments() {
   }, [editForm.doctorId, editForm.date, doctors]);
 
   const isCreateDoctorOffDay = Boolean(
-    form.doctorId && form.date && createTimeSlots.length === 0,
+    form.doctorId && form.date && createTimeSlots.length === 0
   );
 
   const isEditDoctorOffDay = Boolean(
     editForm.doctorId &&
-    editForm.date &&
-    editTimeSlots.length === 0 &&
-    (editForm.doctorId !== String(editTarget?.doctor?.id) ||
-      editForm.date !==
-        new Date(editTarget?.dateTime).toISOString().slice(0, 10)),
+      editForm.date &&
+      editTimeSlots.length === 0 &&
+      (editForm.doctorId !== String(editTarget?.doctor?.id) ||
+        editForm.date !==
+          new Date(editTarget?.dateTime).toISOString().slice(0, 10))
   );
 
   const isPastDateTime = (date, time) => {
@@ -206,7 +209,7 @@ function Appointments() {
 
   const isSlotBlockedFor = (
     { doctorId, patientId, date, slot },
-    excludeAppointmentId = null,
+    excludeAppointmentId = null
   ) => {
     if (!doctorId || !date || !slot) return false;
 
@@ -214,8 +217,7 @@ function Appointments() {
     if (Number.isNaN(selected.getTime())) return false;
 
     return appointments.some((appt) => {
-      if (excludeAppointmentId && appt.id === excludeAppointmentId)
-        return false;
+      if (excludeAppointmentId && appt.id === excludeAppointmentId) return false;
       if (appt.status === "CANCELLED") return false;
 
       const apptTime = new Date(appt.dateTime);
@@ -233,6 +235,11 @@ function Appointments() {
   const handleCreate = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!canManage) {
+      setError("You do not have permission to create appointments.");
+      return;
+    }
 
     if (!form.patientId || !form.doctorId || !form.date) {
       setError("Please complete all required fields");
@@ -262,9 +269,7 @@ function Appointments() {
     });
 
     if (blocked) {
-      setError(
-        "This slot is blocked (doctor or patient has a nearby appointment).",
-      );
+      setError("This slot is blocked (doctor or patient has a nearby appointment).");
       return;
     }
 
@@ -277,7 +282,7 @@ function Appointments() {
           notes: form.notes,
           dateTime: `${form.date}T${form.time}`,
         },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setSuccessMessage("Appointment created successfully");
@@ -303,17 +308,23 @@ function Appointments() {
 
   const handleStatusChange = async (id, status) => {
     setError("");
+
+    if (!canChangeStatus) {
+      setError("You do not have permission to change appointment status.");
+      return;
+    }
+
     try {
       await axios.patch(
         `http://localhost:5000/api/appointments/${id}/status`,
         { status },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       setSuccessMessage("Status updated successfully");
 
       setAppointments((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status } : a)),
+        prev.map((a) => (a.id === id ? { ...a, status } : a))
       );
     } catch {
       setError("Failed to update status");
@@ -324,12 +335,17 @@ function Appointments() {
     if (!deleteTarget) return;
     setError("");
 
+    if (user?.role !== "ADMIN") {
+      setError("Only ADMIN can delete appointments.");
+      return;
+    }
+
     try {
       await axios.delete(
         `http://localhost:5000/api/appointments/${deleteTarget.id}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        },
+        }
       );
 
       setAppointments((prev) => prev.filter((a) => a.id !== deleteTarget.id));
@@ -342,6 +358,12 @@ function Appointments() {
 
   const openEdit = (appt) => {
     setError("");
+
+    if (!canManage) {
+      setError("You do not have permission to edit appointments.");
+      return;
+    }
+
     setEditTarget(appt);
 
     const dt = new Date(appt.dateTime);
@@ -364,6 +386,11 @@ function Appointments() {
     e.preventDefault();
     if (!editTarget) return;
     setError("");
+
+    if (!canManage) {
+      setError("You do not have permission to edit appointments.");
+      return;
+    }
 
     if (!editForm.patientId || !editForm.doctorId || !editForm.date) {
       setError("Please complete all required fields");
@@ -392,13 +419,11 @@ function Appointments() {
         date: editForm.date,
         slot: editForm.time,
       },
-      editTarget.id,
+      editTarget.id
     );
 
     if (blocked) {
-      setError(
-        "This slot is blocked (doctor or patient has a nearby appointment).",
-      );
+      setError("This slot is blocked (doctor or patient has a nearby appointment).");
       return;
     }
 
@@ -411,13 +436,13 @@ function Appointments() {
           notes: editForm.notes,
           dateTime: `${editForm.date}T${editForm.time}`,
         },
-        { headers: { Authorization: `Bearer ${token}` } },
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       const updated = res.data.appointment || res.data;
 
       setAppointments((prev) =>
-        prev.map((a) => (a.id === editTarget.id ? updated : a)),
+        prev.map((a) => (a.id === editTarget.id ? updated : a))
       );
       setSuccessMessage("Appointment updated successfully");
       closeEdit();
@@ -426,19 +451,56 @@ function Appointments() {
     }
   };
 
-  const filtered = useMemo(() => {
-    return appointments.filter((a) =>
-      `${a.patient.firstName} ${a.patient.lastName} ${a.doctor.firstName} ${a.doctor.lastName}`
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()),
-    );
-  }, [appointments, searchTerm]);
+  // ✅ Role-based view filtering
+ const roleFilteredAppointments = useMemo(() => {
+  if (!user) return [];
 
+  if (user.role === "DOCTOR") {
+    if (!user.doctorId) return [];
+    return appointments.filter(
+      (a) => a.doctor && a.doctor.id === Number(user.doctorId)
+    );
+  }
+
+  if (user.role === "PATIENT") {
+    if (!user.patientId) return [];
+    return appointments.filter(
+      (a) => a.patient && a.patient.id === Number(user.patientId)
+    );
+  }
+
+  return appointments;
+}, [appointments, user]);
+
+  const filtered = useMemo(() => {
+    return roleFilteredAppointments.filter((a) =>
+      `${a.patient?.firstName || ""} ${a.patient?.lastName || ""} ${a.doctor?.firstName || ""} ${a.doctor?.lastName || ""}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+    );
+  }, [roleFilteredAppointments, searchTerm]);
   const isPastAppointment = (dateTime) => {
-    const dt = new Date(dateTime);
-    if (Number.isNaN(dt.getTime())) return false;
-    return dt < new Date();
-  };
+  const dt = new Date(dateTime);
+  if (Number.isNaN(dt.getTime())) return false;
+  return dt < new Date();
+};
+
+const isToday = (dateTime) => {
+  const d = new Date(dateTime);
+  const now = new Date();
+
+  return (
+    d.getDate() === now.getDate() &&
+    d.getMonth() === now.getMonth() &&
+    d.getFullYear() === now.getFullYear()
+  );
+};
+
+const todayAppointments = useMemo(() => {
+  return filtered
+    .filter((a) => isToday(a.dateTime))
+    .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+}, [filtered]);
 
   const upcomingGroupedAppointments = useMemo(() => {
     const upcoming = filtered.filter((a) => !isPastAppointment(a.dateTime));
@@ -489,8 +551,6 @@ function Appointments() {
     }
   };
 
-  const canManage = user?.role === "ADMIN" || user?.role === "RECEPTIONIST";
-
   const formatDateHeader = (date) =>
     new Date(date).toLocaleDateString("en-US", {
       weekday: "long",
@@ -525,32 +585,32 @@ function Appointments() {
 
         <div className="flex justify-between items-center">
           <div>
-            <h2 className="text-lg font-semibold text-gray-800">
-              Appointments
-            </h2>
+            <h2 className="text-lg font-semibold text-gray-800">Appointments</h2>
           </div>
 
-          <button
-            onClick={() => {
-              if (showCreate) resetForm();
-              setShowCreate(!showCreate);
-            }}
-            className="text-white px-4 py-2 rounded-lg text-sm transition shadow-sm"
-            style={{
-              backgroundColor: ACCENT,
-            }}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.backgroundColor = ACCENT_DARK)
-            }
-            onMouseLeave={(e) =>
-              (e.currentTarget.style.backgroundColor = ACCENT)
-            }
-          >
-            {showCreate ? "Cancel" : "+ New Appointment"}
-          </button>
+          {canManage && (
+            <button
+              onClick={() => {
+                if (showCreate) resetForm();
+                setShowCreate(!showCreate);
+              }}
+              className="text-white px-4 py-2 rounded-lg text-sm transition shadow-sm"
+              style={{
+                backgroundColor: ACCENT,
+              }}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = ACCENT_DARK)
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = ACCENT)
+              }
+            >
+              {showCreate ? "Cancel" : "+ New Appointment"}
+            </button>
+          )}
         </div>
 
-        {showCreate && (
+        {showCreate && canManage && (
           <div className="p-8 bg-white rounded-2xl shadow-sm border border-gray-200">
             <div
               className="mb-6 rounded-xl border p-4"
@@ -677,8 +737,7 @@ function Appointments() {
                     e.currentTarget.style.backgroundColor = ACCENT_DARK;
                 }}
                 onMouseLeave={(e) => {
-                  if (!isCreatePast)
-                    e.currentTarget.style.backgroundColor = ACCENT;
+                  if (!isCreatePast) e.currentTarget.style.backgroundColor = ACCENT;
                 }}
               >
                 Create Appointment
@@ -694,6 +753,93 @@ function Appointments() {
             placeholder="Search..."
           />
         </div>
+        {todayAppointments.length > 0 && (
+  <div className="space-y-4">
+    <h2 className="text-lg font-semibold text-gray-800">Today</h2>
+
+    <div className="grid gap-4">
+      {todayAppointments.map((appointment) => {
+        const isPast = isPastAppointment(appointment.dateTime);
+
+        return (
+          <div
+            key={appointment.id}
+            className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-300 flex justify-between items-center"
+          >
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-gray-800">
+                  {appointment.patient.firstName} {appointment.patient.lastName}
+                </p>
+
+                {!isPast && (
+                  <span
+                    className="text-[11px] px-2 py-0.5 rounded-full border"
+                    style={{
+                      backgroundColor: ACCENT_SOFT,
+                      borderColor: ACCENT_RING,
+                      color: "#374151",
+                    }}
+                  >
+                    Today
+                  </span>
+                )}
+              </div>
+
+              <p className="text-sm text-gray-500">
+                Dr. {appointment.doctor.firstName} {appointment.doctor.lastName}
+              </p>
+
+              <p className="text-sm text-gray-400 mt-1">
+                {new Date(appointment.dateTime).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+
+              {appointment.notes && (
+                <p className="text-sm text-gray-600 mt-2">📝 {appointment.notes}</p>
+              )}
+            </div>
+
+            <div className="flex gap-3 items-center">
+              <span
+                className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusColor(
+                  appointment.status,
+                )}`}
+              >
+                {appointment.status}
+              </span>
+
+              {canChangeStatus && (
+                <select
+                  value={appointment.status}
+                  onChange={(e) =>
+                    handleStatusChange(appointment.id, e.target.value)
+                  }
+                  className="text-sm border border-gray-200 rounded px-2 py-1"
+                >
+                  <option value="PENDING">PENDING</option>
+                  <option value="CONFIRMED">CONFIRMED</option>
+                  <option value="COMPLETED">COMPLETED</option>
+                  <option value="CANCELLED">CANCELLED</option>
+                </select>
+              )}
+
+              {canEdit && (
+                <ActionButtons
+                  onEdit={() => openEdit(appointment)}
+                  onDelete={() => setDeleteTarget(appointment)}
+                  showDelete={user?.role === "ADMIN"}
+                />
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
 
         {/* UPCOMING / TODAY */}
         <div className="space-y-10">
@@ -746,7 +892,7 @@ function Appointments() {
                               {
                                 hour: "2-digit",
                                 minute: "2-digit",
-                              },
+                              }
                             )}
                           </p>
 
@@ -760,24 +906,26 @@ function Appointments() {
                         <div className="flex gap-3 items-center">
                           <span
                             className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusColor(
-                              appointment.status,
+                              appointment.status
                             )}`}
                           >
                             {appointment.status}
                           </span>
 
-                          <select
-                            value={appointment.status}
-                            onChange={(e) =>
-                              handleStatusChange(appointment.id, e.target.value)
-                            }
-                            className="text-sm border border-gray-200 rounded px-2 py-1"
-                          >
-                            <option value="PENDING">PENDING</option>
-                            <option value="CONFIRMED">CONFIRMED</option>
-                            <option value="COMPLETED">COMPLETED</option>
-                            <option value="CANCELLED">CANCELLED</option>
-                          </select>
+                          {canChangeStatus && (
+                            <select
+                              value={appointment.status}
+                              onChange={(e) =>
+                                handleStatusChange(appointment.id, e.target.value)
+                              }
+                              className="text-sm border border-gray-200 rounded px-2 py-1"
+                            >
+                              <option value="PENDING">PENDING</option>
+                              <option value="CONFIRMED">CONFIRMED</option>
+                              <option value="COMPLETED">COMPLETED</option>
+                              <option value="CANCELLED">CANCELLED</option>
+                            </select>
+                          )}
 
                           {canEdit && (
                             <ActionButtons
@@ -806,7 +954,6 @@ function Appointments() {
 
             <div className="space-y-10">
               {Object.entries(pastGroupedAppointments)
-                // show most recent past day first (still at bottom of page)
                 .sort((a, b) => new Date(b[0]) - new Date(a[0]))
                 .map(([date, appts]) => (
                   <div key={date}>
@@ -819,9 +966,7 @@ function Appointments() {
                         <div
                           key={appointment.id}
                           className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 transition-all duration-300 flex justify-between items-center"
-                          style={{
-                            opacity: 0.78,
-                          }}
+                          style={{ opacity: 0.78 }}
                         >
                           <div>
                             <div className="flex items-center gap-2">
@@ -841,12 +986,13 @@ function Appointments() {
                             </p>
 
                             <p className="text-sm text-gray-400 mt-1">
-                              {new Date(
-                                appointment.dateTime,
-                              ).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {new Date(appointment.dateTime).toLocaleTimeString(
+                                [],
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
                             </p>
 
                             {appointment.notes && (
@@ -859,27 +1005,26 @@ function Appointments() {
                           <div className="flex gap-3 items-center">
                             <span
                               className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusColor(
-                                appointment.status,
+                                appointment.status
                               )}`}
                             >
                               {appointment.status}
                             </span>
 
-                            <select
-                              value={appointment.status}
-                              onChange={(e) =>
-                                handleStatusChange(
-                                  appointment.id,
-                                  e.target.value,
-                                )
-                              }
-                              className="text-sm border border-gray-200 rounded px-2 py-1"
-                            >
-                              <option value="PENDING">PENDING</option>
-                              <option value="CONFIRMED">CONFIRMED</option>
-                              <option value="COMPLETED">COMPLETED</option>
-                              <option value="CANCELLED">CANCELLED</option>
-                            </select>
+                            {canChangeStatus && (
+                              <select
+                                value={appointment.status}
+                                onChange={(e) =>
+                                  handleStatusChange(appointment.id, e.target.value)
+                                }
+                                className="text-sm border border-gray-200 rounded px-2 py-1"
+                              >
+                                <option value="PENDING">PENDING</option>
+                                <option value="CONFIRMED">CONFIRMED</option>
+                                <option value="COMPLETED">COMPLETED</option>
+                                <option value="CANCELLED">CANCELLED</option>
+                              </select>
+                            )}
 
                             {canEdit && (
                               <ActionButtons
@@ -983,7 +1128,7 @@ function Appointments() {
                             date: editForm.date,
                             slot,
                           },
-                          editTarget.id,
+                          editTarget.id
                         )}
                       >
                         {slot}
@@ -1031,8 +1176,7 @@ function Appointments() {
                         e.currentTarget.style.backgroundColor = ACCENT_DARK;
                     }}
                     onMouseLeave={(e) => {
-                      if (!isEditPast)
-                        e.currentTarget.style.backgroundColor = ACCENT;
+                      if (!isEditPast) e.currentTarget.style.backgroundColor = ACCENT;
                     }}
                   >
                     Save Changes
@@ -1060,13 +1204,11 @@ function Appointments() {
 
               <div className="bg-gray-50 rounded-2xl p-4 mb-6 border border-gray-200">
                 <p className="text-sm font-medium text-gray-700">
-                  {deleteTarget.patient.firstName}{" "}
-                  {deleteTarget.patient.lastName}
+                  {deleteTarget.patient.firstName} {deleteTarget.patient.lastName}
                 </p>
 
                 <p className="text-xs text-gray-500">
-                  Dr. {deleteTarget.doctor.firstName}{" "}
-                  {deleteTarget.doctor.lastName}
+                  Dr. {deleteTarget.doctor.firstName} {deleteTarget.doctor.lastName}
                 </p>
 
                 <p className="text-xs text-gray-400 mt-1">

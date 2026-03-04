@@ -76,14 +76,30 @@ export const create = async (req, res) => {
 ============================ */
 
 export const getAll = async (req, res) => {
-  try {
-    const appointments = await getAllAppointments();
-    res.json(appointments);
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
-    });
+  const user = req.user;
+
+  let where = {};
+
+  if (user.role === "DOCTOR") {
+    where.doctorId = user.doctorId;
   }
+
+  if (user.role === "PATIENT") {
+    where.patientId = user.patientId;
+  }
+
+  const appointments = await prisma.appointment.findMany({
+    where,
+    include: {
+      patient: true,
+      doctor: true,
+    },
+    orderBy: {
+      dateTime: "asc",
+    },
+  });
+
+  res.json(appointments);
 };
 
 /* ============================
