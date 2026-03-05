@@ -50,8 +50,11 @@ function Appointments() {
 
   // ✅ Roles
   const canManage = user?.role === "ADMIN" || user?.role === "RECEPTIONIST";
+  const canCreateAppointment = canManage || user?.role === "PATIENT";
   const canEdit = canManage; // keep naming used in JSX below
   const canChangeStatus = canManage;
+  const isPatient = user?.role === "PATIENT";
+  const createFormPatientId = isPatient ? user?.patientId : form.patientId;
 
   const resetForm = () => {
     setForm({
@@ -236,12 +239,17 @@ function Appointments() {
     e.preventDefault();
     setError("");
 
-    if (!canManage) {
+    if (!canCreateAppointment) {
       setError("You do not have permission to create appointments.");
       return;
     }
 
-    if (!form.patientId || !form.doctorId || !form.date) {
+    const needPatient = !isPatient;
+    if (needPatient && !form.patientId) {
+      setError("Please complete all required fields");
+      return;
+    }
+    if (!form.doctorId || !form.date) {
       setError("Please complete all required fields");
       return;
     }
@@ -263,7 +271,7 @@ function Appointments() {
 
     const blocked = isSlotBlockedFor({
       doctorId: form.doctorId,
-      patientId: form.patientId,
+      patientId: createFormPatientId,
       date: form.date,
       slot: form.time,
     });
@@ -273,15 +281,17 @@ function Appointments() {
       return;
     }
 
+    const payload = {
+      doctorId: form.doctorId,
+      notes: form.notes,
+      dateTime: `${form.date}T${form.time}`,
+    };
+    if (!isPatient) payload.patientId = form.patientId;
+
     try {
       const response = await axios.post(
         "http://localhost:5000/api/appointments",
-        {
-          patientId: form.patientId,
-          doctorId: form.doctorId,
-          notes: form.notes,
-          dateTime: `${form.date}T${form.time}`,
-        },
+        payload,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -588,7 +598,7 @@ const todayAppointments = useMemo(() => {
             <h2 className="text-lg font-semibold text-gray-800">Appointments</h2>
           </div>
 
-          {canManage && (
+          {canCreateAppointment && (
             <button
               onClick={() => {
                 if (showCreate) resetForm();
@@ -605,12 +615,12 @@ const todayAppointments = useMemo(() => {
                 (e.currentTarget.style.backgroundColor = ACCENT)
               }
             >
-              {showCreate ? "Cancel" : "+ New Appointment"}
+              {showCreate ? "Cancel" : isPatient ? "Book appointment" : "+ New Appointment"}
             </button>
           )}
         </div>
 
-        {showCreate && canManage && (
+        {showCreate && canCreateAppointment && (
           <div className="p-8 bg-white rounded-2xl shadow-sm border border-gray-200">
             <div
               className="mb-6 rounded-xl border p-4"
@@ -618,26 +628,30 @@ const todayAppointments = useMemo(() => {
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-gray-700">
-                  Create a new appointment
+                  {isPatient ? "Book an appointment" : "Create a new appointment"}
                 </p>
               </div>
               <p className="text-sm text-gray-600 mt-1">
-                Choose patient, doctor, date and a valid time slot.
+                {isPatient
+                  ? "Choose a doctor, date and time. You're booking for yourself."
+                  : "Choose patient, doctor, date and a valid time slot."}
               </p>
             </div>
 
             <form onSubmit={handleCreate} className="grid md:grid-cols-2 gap-6">
-              <SearchableSelect
-                label="Patient"
-                options={patients}
-                selectedId={form.patientId}
-                placeholder="Search patient..."
-                getLabel={(p) => `${p.firstName} ${p.lastName}`}
-                onSelect={(p) => {
-                  setError("");
-                  setForm({ ...form, patientId: p.id });
-                }}
-              />
+              {!isPatient && (
+                <SearchableSelect
+                  label="Patient"
+                  options={patients}
+                  selectedId={form.patientId}
+                  placeholder="Search patient..."
+                  getLabel={(p) => `${p.firstName} ${p.lastName}`}
+                  onSelect={(p) => {
+                    setError("");
+                    setForm({ ...form, patientId: p.id });
+                  }}
+                />
+              )}
 
               <SearchableSelect
                 label="Doctor"
@@ -696,7 +710,7 @@ const todayAppointments = useMemo(() => {
                       value={slot}
                       disabled={isSlotBlockedFor({
                         doctorId: form.doctorId,
-                        patientId: form.patientId,
+                        patientId: createFormPatientId,
                         date: form.date,
                         slot,
                       })}
@@ -740,7 +754,7 @@ const todayAppointments = useMemo(() => {
                   if (!isCreatePast) e.currentTarget.style.backgroundColor = ACCENT;
                 }}
               >
-                Create Appointment
+                {isPatient ? "Book appointment" : "Create Appointment"}
               </button>
             </form>
           </div>

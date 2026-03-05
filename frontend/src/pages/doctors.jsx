@@ -182,14 +182,14 @@ function Doctors() {
       </div>
 
       <TableWrapper>
-        <thead className="bg-gray-100 text-gray-700 border-b border-gray-200">
+        <thead className="bg-slate-600 text-white border-b border-slate-500">
           <tr>
-            <th className="p-4 text-left">First Name</th>
-            <th className="p-4 text-left">Last Name</th>
-            <th className="p-4 text-left">Specialization</th>
-            <th className="p-4 text-left">Phone</th>
-            <th className="p-4 text-left">Email</th>
-            <th className="p-4 text-left">Actions</th>
+            <th className="p-4 text-left font-semibold text-sm">First Name</th>
+            <th className="p-4 text-left font-semibold text-sm">Last Name</th>
+            <th className="p-4 text-left font-semibold text-sm">Specialization</th>
+            <th className="p-4 text-left font-semibold text-sm">Phone</th>
+            <th className="p-4 text-left font-semibold text-sm">Email</th>
+            <th className="p-4 text-left font-semibold text-sm">Actions</th>
           </tr>
         </thead>
 

@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { useContext } from "react";
 import { AuthContext } from "../context/authcontext";
 
@@ -8,114 +8,84 @@ function Layout({ children }) {
   const role = user?.role;
 
   const linkClasses = ({ isActive }) =>
-    `
-    flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
-    ${
-      isActive
-        ? "text-gray-900 bg-[#daebed] border border-[#b0d2db]"
-        : "text-gray-600 hover:bg-gray-100"
-    }
-  `;
+    `flex items-center px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
+     ${isActive ? "bg-slate-700 text-white" : "text-slate-300 hover:bg-slate-800 hover:text-white"}`;
 
   const initials =
-    user?.name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "?";
+    user?.name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase() || "?";
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-
       {/* Sidebar */}
-      <aside className="w-72 bg-white border-r border-gray-200 flex flex-col sticky top-0 h-screen shadow-sm">
-
-        {/* Logo */}
-        <div className="px-6 py-8 border-b border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900 tracking-wide">
+      <aside className="w-64 flex-shrink-0 flex flex-col h-screen bg-slate-900 border-r border-slate-700/60">
+        {/* Logo block - click goes to landing */}
+        <Link to="/" className="block px-5 py-6 border-b border-slate-700/60 hover:bg-slate-800/50 transition rounded-t-lg">
+          <h2 className="text-xl font-bold text-white tracking-tight">
             Vitalis Clinic
           </h2>
-
-          <p className="text-gray-500 text-sm mt-1">
-            {role === "PATIENT" && "Patient Portal"}
-            {role === "DOCTOR" && "Doctor Portal"}
-            {(role === "ADMIN" || role === "RECEPTIONIST") && "Administration Panel"}
+          <p className="mt-1 text-xs font-medium uppercase tracking-wider text-slate-500">
+            {role === "PATIENT" && "Patient"}
+            {role === "DOCTOR" && "Doctor"}
+            {(role === "ADMIN" || role === "RECEPTIONIST") && "Admin"}
           </p>
-        </div>
+        </Link>
 
-        {/* Navigation */}
-        <nav className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
-
-          {/* DASHBOARD */}
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-5 flex flex-col gap-0.5 overflow-y-auto">
           {(role === "ADMIN" || role === "RECEPTIONIST" || role === "DOCTOR") && (
             <NavLink to="/dashboard" className={linkClasses}>
-              📊 Dashboard
+              Dashboard
             </NavLink>
           )}
-
-          {/* PATIENTS */}
           {(role === "ADMIN" || role === "RECEPTIONIST" || role === "DOCTOR") && (
             <NavLink to="/patients" className={linkClasses}>
-              🧑‍⚕️ Patients
+              Patients
             </NavLink>
           )}
-
-          {/* DOCTORS */}
           <NavLink to="/doctors" className={linkClasses}>
-            🩺 Doctors
+            Doctors
           </NavLink>
-
-          {/* APPOINTMENTS */}
           <NavLink to="/appointments" className={linkClasses}>
-            📅 Appointments
+            Appointments
           </NavLink>
-
         </nav>
 
-        {/* Bottom Section */}
-        <div className="p-4 border-t border-gray-200 bg-white space-y-3">
-
-          {/* User Card */}
-          <div className="flex items-center gap-3 px-3 py-3 rounded-xl bg-gray-50 border border-gray-200">
-
-            <div className="w-10 h-10 rounded-full bg-[#daebed] flex items-center justify-center text-sm font-semibold text-gray-700">
+        {/* User + actions */}
+        <div className="p-3 border-t border-slate-700/60 space-y-2">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-slate-800/70">
+            <div className="w-9 h-9 rounded-full bg-slate-600 flex items-center justify-center text-xs font-semibold text-white flex-shrink-0">
               {initials}
             </div>
-
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-800 truncate">
-                {user?.name}
-              </p>
-
-              <span className="text-xs px-2 py-0.5 rounded-full bg-[#daebed] text-gray-600 border border-[#b0d2db]">
-                {user?.role}
-              </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-white truncate">{user?.name}</p>
+              <p className="text-xs text-slate-400 truncate">{user?.role}</p>
             </div>
-
           </div>
-
-          {/* Profile */}
           <NavLink to="/profile" className={linkClasses}>
-            👤 Profile
+            Profile
           </NavLink>
-
-          {/* Logout */}
           <button
             onClick={logout}
-            className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 rounded-xl transition text-sm"
+            className="w-full py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
           >
-            🚪 Logout
+            Logout
           </button>
-
         </div>
-
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto">
-
-        <div className="p-10 max-w-7xl mx-auto">
-          {children}
-        </div>
-
+      <main className="flex-1 overflow-y-auto flex flex-col min-h-0">
+        <div className="flex-1 p-10 max-w-7xl mx-auto w-full">{children}</div>
+        <footer className="py-3 border-t border-gray-200 bg-gray-50/80">
+          <div className="max-w-7xl mx-auto px-10 text-center text-xs text-gray-500">
+            Vitalis Clinic © {new Date().getFullYear()}
+          </div>
+        </footer>
       </main>
-
     </div>
   );
 }

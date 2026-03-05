@@ -63,10 +63,10 @@ function Login() {
             Vitalis Clinic
           </h1>
           <p className="mt-5 text-lg text-white/90 max-w-sm">
-            Manage patients, doctors, and appointments with a simple dashboard built for modern clinics.
+            Sign in to view your appointments and doctors, or to manage the clinic. For patients and staff.
           </p>
           <ul className="mt-8 space-y-3 text-white/80">
-            {["Secure sign-in", "Role-based access", "Real-time updates"].map((item) => (
+            {["Secure sign-in", "Patients & staff", "View or manage appointments"].map((item) => (
               <li key={item} className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-white/90" />
                 {item}
@@ -97,7 +97,7 @@ function Login() {
               className="bg-white rounded-2xl border border-gray-200 shadow-sm shadow-gray-200/50 p-8"
             >
               <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
-              <p className="text-gray-500 mt-1 mb-8">Sign in to access your account</p>
+              <p className="text-gray-500 mt-1 mb-8">Sign in to view your appointments or manage the clinic</p>
 
               {error && (
                 <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm flex items-start gap-2">
@@ -117,7 +117,7 @@ function Login() {
                     required
                     autoComplete="email"
                     className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-[#579ec0] focus:border-[#579ec0] focus:outline-none transition text-gray-900 placeholder:text-gray-400"
-                    placeholder="you@clinic.com"
+                    placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
