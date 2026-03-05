@@ -21,7 +21,7 @@ function Profile() {
 
   // account edit
   const [editingAccount, setEditingAccount] = useState(false);
-  const [accountForm, setAccountForm] = useState({ name: "", email: "" });
+  const [accountForm, setAccountForm] = useState({ name: "", email: "", phone: "", });
   const [searchParams] = useSearchParams();
   const forcePasswordChange = searchParams.get("forcePasswordChange");
   
@@ -61,6 +61,7 @@ function Profile() {
           setDoctorForm({
             phone: res.data.doctor.phone || "",
             specialization: res.data.doctor.specialization || "",
+            phone: res.data?.patient?.phone || res.data?.doctor?.phone || "",
           });
 
           // availability can be string or object
@@ -261,6 +262,19 @@ function Profile() {
                 }`}
               />
             </div>
+            <div>
+  <label className="text-xs text-gray-500">Phone</label>
+  <input
+    disabled={!editingAccount}
+    value={accountForm.phone}
+    onChange={(e) =>
+      setAccountForm((p) => ({ ...p, phone: e.target.value }))
+    }
+    className={`mt-1 w-full rounded-xl px-4 py-2 border border-gray-200 ${
+      editingAccount ? "" : "bg-gray-50"
+    }`}
+  />
+</div>
           </div>
 
           {editingAccount && (

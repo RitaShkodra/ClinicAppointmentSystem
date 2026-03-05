@@ -48,35 +48,60 @@ export const getMe = async (req, res) => {
 export const updateMe = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { name, email } = req.body;
+    const { name, email, phone } = req.body;
 
     if (!name || !email) {
       return res.status(400).json({ message: "Name and email are required" });
     }
 
-    // prevent duplicate email
+    // check duplicate email
     const existing = await prisma.user.findFirst({
       where: {
         email,
         NOT: { id: userId },
       },
     });
+
     if (existing) {
       return res.status(400).json({ message: "Email already in use" });
     }
 
-    const updated = await prisma.user.update({
+    // update user
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: { name, email },
-      select: { id: true, name: true, email: true, role: true, doctorId: true, patientId: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        doctorId: true,
+        patientId: true,
+      },
     });
 
-    res.json(updated);
+    // update doctor phone
+    if (updatedUser.role === "DOCTOR" && updatedUser.doctorId && phone !== undefined) {
+      await prisma.doctor.update({
+        where: { id: updatedUser.doctorId },
+        data: { phone },
+      });
+    }
+
+    // update patient phone
+    if (updatedUser.role === "PATIENT" && updatedUser.patientId && phone !== undefined) {
+      await prisma.patient.update({
+        where: { id: updatedUser.patientId },
+        data: { phone },
+      });
+    }
+
+    res.json(updatedUser);
+
   } catch (err) {
     res.status(500).json({ message: "Failed to update profile" });
   }
 };
-
 export const changeMyPassword = async (req, res) => {
   try {
     const userId = req.user.id;

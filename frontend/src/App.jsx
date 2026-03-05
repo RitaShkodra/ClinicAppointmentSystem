@@ -25,37 +25,37 @@ function App() {
       />
 
       <Route
-        path="/patients"
-        element={
-          <ProtectedRoute allowedRoles={["ADMIN", "RECEPTIONIST", "DOCTOR"]}>
-            <Layout>
-              <Patients />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
+  path="/patients"
+  element={
+    <ProtectedRoute allowedRoles={["ADMIN", "RECEPTIONIST", "DOCTOR"]}>
+      <Layout>
+        <Patients />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
 
-      <Route
-        path="/doctors"
-        element={
-          <ProtectedRoute allowedRoles={["ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT"]}>
-            <Layout>
-              <Doctors />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
+<Route
+  path="/doctors"
+  element={
+    <ProtectedRoute allowedRoles={["ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT"]}>
+      <Layout>
+        <Doctors />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
 
-      <Route
-        path="/appointments"
-        element={
-          <ProtectedRoute allowedRoles={["ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT"]}>
-            <Layout>
-              <Appointments />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
+<Route
+  path="/appointments"
+  element={
+    <ProtectedRoute allowedRoles={["ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT"]}>
+      <Layout>
+        <Appointments />
+      </Layout>
+    </ProtectedRoute>
+  }
+/>
 
       <Route
         path="/profile"

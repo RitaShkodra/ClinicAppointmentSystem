@@ -5,6 +5,8 @@ import { AuthContext } from "../context/authcontext";
 function Layout({ children }) {
   const { logout, user } = useContext(AuthContext);
 
+  const role = user?.role;
+
   const linkClasses = ({ isActive }) =>
     `
     flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all
@@ -29,28 +31,37 @@ function Layout({ children }) {
           <h2 className="text-2xl font-bold text-gray-900 tracking-wide">
             🏥 Clinic System
           </h2>
+
           <p className="text-gray-500 text-sm mt-1">
-            Administration Panel
+            {role === "PATIENT" && "Patient Portal"}
+            {role === "DOCTOR" && "Doctor Portal"}
+            {(role === "ADMIN" || role === "RECEPTIONIST") && "Administration Panel"}
           </p>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 flex flex-col gap-2 overflow-y-auto">
 
-          <NavLink to="/dashboard" className={linkClasses}>
-            📊 Dashboard
-          </NavLink>
-
-          <NavLink to="/patients" className={linkClasses}>
-            🧑‍⚕️ Patients
-          </NavLink>
-
-          {user?.role === "ADMIN" && (
-            <NavLink to="/doctors" className={linkClasses}>
-              🩺 Doctors
+          {/* DASHBOARD */}
+          {(role === "ADMIN" || role === "RECEPTIONIST" || role === "DOCTOR") && (
+            <NavLink to="/dashboard" className={linkClasses}>
+              📊 Dashboard
             </NavLink>
           )}
 
+          {/* PATIENTS */}
+          {(role === "ADMIN" || role === "RECEPTIONIST" || role === "DOCTOR") && (
+            <NavLink to="/patients" className={linkClasses}>
+              🧑‍⚕️ Patients
+            </NavLink>
+          )}
+
+          {/* DOCTORS */}
+          <NavLink to="/doctors" className={linkClasses}>
+            🩺 Doctors
+          </NavLink>
+
+          {/* APPOINTMENTS */}
           <NavLink to="/appointments" className={linkClasses}>
             📅 Appointments
           </NavLink>

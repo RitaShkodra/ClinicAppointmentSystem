@@ -41,13 +41,8 @@ export const create = async (req, res) => {
 
 export const getAll = async (req, res) => {
   try {
-
-    const doctors = await prisma.doctor.findMany({
-      orderBy: { lastName: "asc" }
-    });
-
+    const doctors = await prisma.doctor.findMany();
     res.json(doctors);
-
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
