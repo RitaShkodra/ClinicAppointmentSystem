@@ -29,7 +29,7 @@ function Layout({ children }) {
         {/* Logo */}
         <div className="px-6 py-8 border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900 tracking-wide">
-            🏥 Clinic System
+            Vitalis Clinic
           </h2>
 
           <p className="text-gray-500 text-sm mt-1">

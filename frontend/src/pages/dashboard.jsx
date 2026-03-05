@@ -35,6 +35,7 @@ function Dashboard() {
 
   const isAdmin = user?.role === "ADMIN";
   const isReceptionist = user?.role === "RECEPTIONIST";
+  const isDoctor = user?.role === "DOCTOR";
   const canSeeAnalytics = isAdmin || isReceptionist;
 
   useEffect(() => {
@@ -135,6 +136,10 @@ function Dashboard() {
       },
     },
   };
+
+  if (isDoctor) {
+    return <DoctorDashboard stats={stats} chartData={chartData} chartOptions={chartOptions} />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -297,6 +302,126 @@ function Dashboard() {
           </div>
         )}
 
+      </div>
+    </div>
+  );
+}
+
+/* ========== Doctor-specific dashboard ========== */
+function DoctorDashboard({ stats, chartData, chartOptions }) {
+  const todayCount = stats.todayAppointments?.length ?? 0;
+  const weekTotal = stats.weekly?.reduce((s, d) => s + d.count, 0) ?? 0;
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 18) return "Good afternoon";
+    return "Good evening";
+  })();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-cyan-50/30">
+      <div className="p-8 md:p-10 max-w-5xl mx-auto space-y-8">
+        {/* Hero welcome */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#579ec0] via-[#4a8fb5] to-[#3d7a9e] text-white p-8 md:p-10 shadow-xl shadow-[#579ec0]/20">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+          <div className="relative">
+            <p className="text-white/90 text-lg font-medium">{greeting}</p>
+            <h1 className="text-3xl md:text-4xl font-bold mt-1 tracking-tight">
+              Here’s your day at a glance
+            </h1>
+            <p className="mt-3 text-white/80 max-w-md">
+              {todayCount === 0
+                ? "No appointments scheduled for today. Use the time to catch up or relax."
+                : `${todayCount} appointment${todayCount === 1 ? "" : "s"} today. You’ve got this.`}
+            </p>
+          </div>
+        </div>
+
+        {/* Quick stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-[#b0d2db]/50 transition-all duration-200">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Today</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">{todayCount}</p>
+            <p className="text-sm text-gray-500 mt-0.5">appointments</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md hover:border-[#b0d2db]/50 transition-all duration-200">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">This week</p>
+            <p className="text-3xl font-bold text-gray-900 mt-1">{weekTotal}</p>
+            <p className="text-sm text-gray-500 mt-0.5">total</p>
+          </div>
+          <div className="bg-amber-50 rounded-2xl border border-amber-100 p-5">
+            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wider">Pending</p>
+            <p className="text-3xl font-bold text-amber-800 mt-1">{stats.pending ?? 0}</p>
+            <p className="text-sm text-amber-600 mt-0.5">to confirm</p>
+          </div>
+          <div className="bg-emerald-50 rounded-2xl border border-emerald-100 p-5">
+            <p className="text-xs font-semibold text-emerald-700 uppercase tracking-wider">Confirmed</p>
+            <p className="text-3xl font-bold text-emerald-800 mt-1">{stats.confirmed ?? 0}</p>
+            <p className="text-sm text-emerald-600 mt-0.5">locked in</p>
+          </div>
+        </div>
+
+        {/* Today's schedule – main focus */}
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-r from-gray-50/80 to-white">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#579ec0] animate-pulse" />
+                Your schedule today
+              </h2>
+              <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
+                {todayCount} {todayCount === 1 ? "slot" : "slots"}
+              </span>
+            </div>
+          </div>
+          <div className="p-6">
+            {todayCount === 0 ? (
+              <div className="text-center py-12 px-4">
+                <div className="w-16 h-16 mx-auto rounded-2xl bg-gray-100 flex items-center justify-center text-3xl mb-4">
+                  📅
+                </div>
+                <p className="text-gray-700 font-medium">No appointments today</p>
+                <p className="text-gray-500 text-sm mt-1 max-w-sm mx-auto">
+                  Your calendar is clear. A good day for admin, study, or a well-deserved break.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {stats.todayAppointments?.map((appt) => (
+                  <div
+                    key={appt.id}
+                    className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50/80 border border-gray-100 hover:bg-[#daebed]/50 hover:border-[#b0d2db]/60 transition-all duration-200 group"
+                  >
+                    <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-[#579ec0] text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                      {appt.time}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 group-hover:text-[#2d5a72] transition-colors">
+                        {appt.patientName}
+                      </p>
+                      <p className="text-sm text-gray-500">Appointment with you</p>
+                    </div>
+                    <div className="flex-shrink-0 text-xs font-medium text-gray-400 hidden sm:block">
+                      #{String(appt.id).slice(-4)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Weekly chart – your week at a glance */}
+        {stats.weekly?.length > 0 && (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Your week at a glance</h2>
+            <p className="text-sm text-gray-500 mb-5">Appointments per day</p>
+            <div className="rounded-xl border border-gray-100 p-3 bg-gray-50/50">
+              <Line data={chartData} options={chartOptions} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
