@@ -19,7 +19,7 @@ const router = express.Router();
 router.post(
   "/",
   authMiddleware,
-  authorizeRoles("ADMIN", "RECEPTIONIST", "PATIENT"),
+  authorizeRoles("ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT"),
   create,
 );
 
@@ -31,7 +31,7 @@ router.post(
 router.get(
   "/",
   authMiddleware,
-  authorizeRoles("ADMIN", "RECEPTIONIST"),
+  authorizeRoles("ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT"),
   getAll,
 );
 

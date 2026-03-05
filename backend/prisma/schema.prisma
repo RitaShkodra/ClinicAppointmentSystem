@@ -18,6 +18,7 @@ model User {
 
   doctorId  Int?
   patientId Int?
+  forcePasswordChange Boolean @default(true)
 
   doctor    Doctor?  @relation(fields: [doctorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   patient   Patient? @relation(fields: [patientId], references: [id], onDelete: NoAction, onUpdate: NoAction)

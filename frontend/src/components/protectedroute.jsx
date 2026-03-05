@@ -12,6 +12,9 @@ function ProtectedRoute({ children, allowedRoles }) {
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
+  if (user?.forcePasswordChange && location.pathname !== "/change-password") {
+  return <Navigate to="/change-password" />;
+}
 
   return children;
 }

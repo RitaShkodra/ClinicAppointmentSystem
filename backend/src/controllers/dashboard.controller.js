@@ -1,33 +1,71 @@
 import prisma from "../prisma.js";
 
 export const getStats = async (req, res) => {
-  const totalPatients = await prisma.patient.count();
-  const totalDoctors = await prisma.doctor.count();
-  const totalAppointments = await prisma.appointment.count();
 
-  const pending = await prisma.appointment.count({
-    where: { status: "PENDING" },
+  const role = req.user.role;
+  const doctorId = req.user.doctorId;
+  const patientId = req.user.patientId;
+
+  let appointmentFilter = { deletedAt: null };
+
+  if (role === "DOCTOR" && doctorId) {
+    appointmentFilter = {
+      deletedAt: null,
+      doctorId,
+    };
+  }
+
+  if (role === "PATIENT" && patientId) {
+    appointmentFilter = {
+      deletedAt: null,
+      patientId,
+    };
+  }
+
+  /* =======================
+     COUNTS
+  ======================= */
+
+  const totalPatients =
+    role === "PATIENT"
+      ? 1
+      : await prisma.patient.count({
+          where: { deletedAt: null },
+        });
+
+  const totalDoctors = await prisma.doctor.count({
+    where: { deletedAt: null },
   });
 
-  const approved = await prisma.appointment.count({
-    where: { status: "APPROVED" },
+  const totalAppointments = await prisma.appointment.count({
+    where: appointmentFilter,
+  });
+
+  const pending = await prisma.appointment.count({
+    where: { ...appointmentFilter, status: "PENDING" },
+  });
+
+  const confirmed = await prisma.appointment.count({
+    where: { ...appointmentFilter, status: "CONFIRMED" },
   });
 
   const cancelled = await prisma.appointment.count({
-    where: { status: "CANCELLED" },
+    where: { ...appointmentFilter, status: "CANCELLED" },
   });
 
   /* =======================
      WEEKLY DATA
-  ======================== */
+  ======================= */
 
   const today = new Date();
+
   const startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
 
   const weekAppointments = await prisma.appointment.findMany({
     where: {
+      ...appointmentFilter,
       dateTime: {
         gte: startOfWeek,
       },
@@ -50,7 +88,7 @@ export const getStats = async (req, res) => {
 
   /* =======================
      TODAY APPOINTMENTS
-  ======================== */
+  ======================= */
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
@@ -60,6 +98,7 @@ export const getStats = async (req, res) => {
 
   const todayAppointmentsRaw = await prisma.appointment.findMany({
     where: {
+      ...appointmentFilter,
       dateTime: {
         gte: startOfToday,
         lte: endOfToday,
@@ -83,28 +122,35 @@ export const getStats = async (req, res) => {
       minute: "2-digit",
     }),
   }));
-const lastWeekStart = new Date(startOfWeek);
-lastWeekStart.setDate(startOfWeek.getDate() - 7);
 
-const lastWeekAppointments = await prisma.appointment.count({
-  where: {
-    dateTime: {
-      gte: lastWeekStart,
-      lt: startOfWeek,
+  /* =======================
+     WEEKLY GROWTH
+  ======================= */
+
+  const lastWeekStart = new Date(startOfWeek);
+  lastWeekStart.setDate(startOfWeek.getDate() - 7);
+
+  const lastWeekAppointments = await prisma.appointment.count({
+    where: {
+      ...appointmentFilter,
+      dateTime: {
+        gte: lastWeekStart,
+        lt: startOfWeek,
+      },
     },
-  },
-});
+  });
 
-const thisWeekCount = weekAppointments.length;
+  const thisWeekCount = weekAppointments.length;
 
-const weeklyGrowth =
-  lastWeekAppointments > 0
-    ? Math.round(
-        ((thisWeekCount - lastWeekAppointments) /
-          lastWeekAppointments) *
-          100
-      )
-    : 0;
+  const weeklyGrowth =
+    lastWeekAppointments > 0
+      ? Math.round(
+          ((thisWeekCount - lastWeekAppointments) /
+            lastWeekAppointments) *
+            100
+        )
+      : 0;
+
   /* ======================= */
 
   res.json({
@@ -112,7 +158,7 @@ const weeklyGrowth =
     totalDoctors,
     totalAppointments,
     pending,
-    approved,
+    confirmed,
     cancelled,
     weekly,
     todayAppointments,

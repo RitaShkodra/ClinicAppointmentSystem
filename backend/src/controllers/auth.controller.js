@@ -54,33 +54,39 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log("LOGIN ATTEMPT:", email, password);
+
     const user = await prisma.user.findUnique({
       where: { email },
     });
+
+    console.log("USER FOUND:", user);
 
     if (!user || user.deletedAt) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
+    console.log("HASH IN DB:", user.password);
+
     const isMatch = await bcrypt.compare(password, user.password);
+
+    console.log("PASSWORD MATCH:", isMatch);
 
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    if (!process.env.JWT_SECRET) {
-      return res.status(500).json({ message: "JWT secret not configured" });
-    }
-
     const accessToken = jwt.sign(
-      {
-        id: user.id,
-        role: user.role,
-        email: user.email,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" },
-    );
+{
+  id: user.id,
+  role: user.role,
+  email: user.email,
+  doctorId: user.doctorId,
+  patientId: user.patientId
+},
+process.env.JWT_SECRET,
+{ expiresIn: "1h" }
+);
 
     return res.json({
       accessToken,
@@ -89,8 +95,10 @@ export const login = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        forcePasswordChange: user.forcePasswordChange,
       },
     });
+
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ message: "Server error during login" });

@@ -99,7 +99,7 @@ function Dashboard() {
 
   const completionRate =
     stats.totalAppointments > 0
-      ? Math.round((stats.approved / stats.totalAppointments) * 100)
+      ? Math.round((stats.confirmed / stats.totalAppointments) * 100)
       : 0;
 
   const chartData = {
@@ -219,7 +219,7 @@ function Dashboard() {
                   Completion Rate
                 </h2>
                 <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-600">
-                  Approved / Total
+                  Confirmed / Total
                 </span>
               </div>
 
@@ -243,7 +243,7 @@ function Dashboard() {
 
                   <div className="hidden md:flex gap-2">
                     <StatusPill label="Pending" value={stats.pending} type="pending" />
-                    <StatusPill label="Approved" value={stats.approved} type="approved" />
+                    <StatusPill label="Confirmed" value={stats.confirmed} type="confirmed" />
                     <StatusPill label="Cancelled" value={stats.cancelled} type="cancelled" />
                   </div>
                 </div>
@@ -291,7 +291,7 @@ function Dashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <StatusBigCard title="Pending" value={stats.pending} type="pending" />
-              <StatusBigCard title="Approved" value={stats.approved} type="approved" />
+              <StatusBigCard title="Confirmed" value={stats.confirmed} type="confirmed" />
               <StatusBigCard title="Cancelled" value={stats.cancelled} type="cancelled" />
             </div>
           </div>
@@ -358,7 +358,7 @@ function KpiCard({ title, value, hint, accent, dot }) {
 function StatusPill({ label, value, type }) {
   const map = {
     pending: "bg-yellow-100 text-yellow-700",
-    approved: "bg-blue-100 text-blue-700",
+    confirmed: "bg-blue-100 text-blue-700",
     cancelled: "bg-red-100 text-red-700",
   };
 
@@ -372,7 +372,7 @@ function StatusPill({ label, value, type }) {
 function StatusBigCard({ title, value, type }) {
   const map = {
     pending: "bg-yellow-100 text-yellow-800",
-    approved: "bg-blue-100 text-blue-800",
+    confirmed: "bg-blue-100 text-blue-800",
     cancelled: "bg-red-100 text-red-800",
   };
 

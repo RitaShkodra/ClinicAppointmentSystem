@@ -9,8 +9,8 @@ export const getDashboardStats = async () => {
     where: { status: "PENDING" },
   });
 
-  const approvedAppointments = await prisma.appointment.count({
-    where: { status: "APPROVED" },
+  const confirmedAppointments = await prisma.appointment.count({
+    where: { status: "CONFIRMED" },
   });
 
   const cancelledAppointments = await prisma.appointment.count({
@@ -22,7 +22,7 @@ export const getDashboardStats = async () => {
     totalDoctors,
     totalAppointments,
     pendingAppointments,
-    approvedAppointments,
+    confirmedAppointments,
     cancelledAppointments,
   };
 };

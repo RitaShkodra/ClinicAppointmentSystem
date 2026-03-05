@@ -8,7 +8,7 @@ const router = express.Router();
 router.get(
   "/stats",
   authMiddleware,
-  authorizeRoles("ADMIN"),
+  authorizeRoles("ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT"),
   getStats
 );
 

@@ -149,18 +149,15 @@ export const createAppointment = async ({
 /* =========================
    GET ALL APPOINTMENTS
 ========================= */
-export const getAllAppointments = async (page = 1, limit = 10) => {
+export const getAllAppointments = async ({ where = {}, page = 1, limit = 10 }) => {
   const p = Math.max(1, Number(page) || 1);
   const l = Math.min(100, Math.max(1, Number(limit) || 10));
 
-  return await prisma.appointment.findMany({
-    where: { deletedAt: null },
+  return prisma.appointment.findMany({
+    where: { deletedAt: null, ...where },
     skip: (p - 1) * l,
     take: l,
-    include: {
-      patient: true,
-      doctor: true,
-    },
+    include: { patient: true, doctor: true },
     orderBy: { dateTime: "asc" },
   });
 };

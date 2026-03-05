@@ -1,16 +1,13 @@
 /**
  * Role Authorization Middleware
  * Allows access only to specified roles
- *
- * Usage:
- * authorizeRoles("ADMIN")
- * authorizeRoles("ADMIN", "RECEPTIONIST")
- * authorizeRoles("DOCTOR")
  */
+
 export const authorizeRoles = (...allowedRoles) => {
   return (req, res, next) => {
     try {
-      // 1️⃣ Ensure user exists (authMiddleware must run first)
+
+      // Ensure authMiddleware ran
       if (!req.user) {
         return res.status(401).json({
           success: false,
@@ -20,7 +17,11 @@ export const authorizeRoles = (...allowedRoles) => {
 
       const userRole = req.user.role;
 
-      // 2️⃣ Validate role
+      // Debug (TEMPORARY)
+      console.log("USER ROLE:", userRole);
+      console.log("ALLOWED ROLES:", allowedRoles);
+
+      // Validate role
       if (!userRole) {
         return res.status(403).json({
           success: false,
@@ -28,7 +29,7 @@ export const authorizeRoles = (...allowedRoles) => {
         });
       }
 
-      // 3️⃣ Check if role is allowed
+      // Check permissions
       if (!allowedRoles.includes(userRole)) {
         return res.status(403).json({
           success: false,
@@ -37,7 +38,10 @@ export const authorizeRoles = (...allowedRoles) => {
       }
 
       next();
+
     } catch (error) {
+      console.error("Authorization error:", error);
+
       return res.status(500).json({
         success: false,
         message: "Authorization error",

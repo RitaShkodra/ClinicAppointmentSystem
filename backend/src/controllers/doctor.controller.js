@@ -5,26 +5,33 @@ import {
   updateDoctor,
   deleteDoctor,
 } from "../services/doctor.service.js";
+import { createUserByAdmin } from "../services/user.service.js";
+import prisma from "../prisma.js";
 
 export const create = async (req, res) => {
   try {
     const { firstName, lastName, specialization, email, phone } = req.body;
 
-    if (!firstName || !lastName || !specialization) {
+    if (!firstName || !lastName || !specialization || !email) {
       return res.status(400).json({
-        message: "First name, last name and specialization are required",
+        message: "First name, last name, specialization and email are required",
       });
     }
 
-    const doctor = await createDoctor({
-      firstName,
-      lastName,
-      specialization,
+    const doctor = await createUserByAdmin({
+      name: `${firstName} ${lastName}`,
       email,
-      phone,
+      role: "DOCTOR",
+      doctorData: {
+        firstName,
+        lastName,
+        specialization,
+        phone,
+      },
     });
 
     res.status(201).json(doctor);
+
   } catch (error) {
     res.status(400).json({
       message: error.message,
@@ -34,12 +41,15 @@ export const create = async (req, res) => {
 
 export const getAll = async (req, res) => {
   try {
-    const doctors = await getAllDoctors();
-    res.json(doctors);
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
+
+    const doctors = await prisma.doctor.findMany({
+      orderBy: { lastName: "asc" }
     });
+
+    res.json(doctors);
+
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
 };
 

@@ -24,24 +24,22 @@ export const create = async (req, res) => {
       });
     }
 
-    // 🟡 If PATIENT, force patientId to their own
-    if (req.user.role === "PATIENT") {
-      const patient = await prisma.patient.findUnique({
-        where: { userId: req.user.id },
-      });
+    const role = req.user.role;
 
-      if (!patient) {
+    // PATIENT → force their own patientId
+    if (role === "PATIENT") {
+      patientId = req.user.patientId;
+
+      if (!patientId) {
         return res.status(403).json({
           message: "Patient profile not found",
         });
       }
-
-      patientId = patient.id;
     }
 
-    // 🟢 ADMIN & RECEPTIONIST must provide patientId
+    // ADMIN / RECEPTIONIST must provide patientId
     if (
-      (req.user.role === "ADMIN" || req.user.role === "RECEPTIONIST") &&
+      (role === "ADMIN" || role === "RECEPTIONIST") &&
       !patientId
     ) {
       return res.status(400).json({
@@ -58,7 +56,7 @@ export const create = async (req, res) => {
 
     await sendEmail({
       to: appointment.patient.email,
-      subject: "Appointment Confirmed",
+      subject: "Appointment Created",
       html: buildAppointmentEmail({
         type: "CREATED",
         appointment,
@@ -66,41 +64,60 @@ export const create = async (req, res) => {
     });
 
     res.status(201).json(appointment);
+
   } catch (error) {
+    console.error(error);
     res.status(400).json({ message: error.message });
   }
 };
+
 
 /* ============================
    GET ALL APPOINTMENTS
 ============================ */
 
 export const getAll = async (req, res) => {
-  const user = req.user;
+  try {
+    const role = req.user.role;
+    const doctorId = req.user.doctorId;
+    const patientId = req.user.patientId;
 
-  let where = {};
+    let where = { deletedAt: null };
 
-  if (user.role === "DOCTOR") {
-    where.doctorId = user.doctorId;
+    // Doctor sees only their appointments
+    if (role === "DOCTOR") {
+      if (!doctorId) {
+        return res.status(403).json({ message: "Doctor profile not found" });
+      }
+      where.doctorId = Number(doctorId);
+    }
+
+    // Patient sees only their appointments
+    if (role === "PATIENT") {
+      if (!patientId) {
+        return res.status(403).json({ message: "Patient profile not found" });
+      }
+      where.patientId = Number(patientId);
+    }
+
+    const appointments = await prisma.appointment.findMany({
+      where,
+      include: {
+        doctor: true,
+        patient: true,
+      },
+      orderBy: {
+        dateTime: "asc",
+      },
+    });
+
+    res.json(appointments);
+  } catch (error) {
+    console.error(error);
+    res.status(400).json({ message: error.message });
   }
-
-  if (user.role === "PATIENT") {
-    where.patientId = user.patientId;
-  }
-
-  const appointments = await prisma.appointment.findMany({
-    where,
-    include: {
-      patient: true,
-      doctor: true,
-    },
-    orderBy: {
-      dateTime: "asc",
-    },
-  });
-
-  res.json(appointments);
 };
+
 
 /* ============================
    UPDATE STATUS
@@ -108,6 +125,7 @@ export const getAll = async (req, res) => {
 
 export const updateStatus = async (req, res) => {
   try {
+
     const { status } = req.body;
 
     if (!status) {
@@ -116,10 +134,10 @@ export const updateStatus = async (req, res) => {
       });
     }
 
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: Number(req.params.id) },
-      include: { doctor: true, patient: true },
-    });
+    const appointment = await prisma.appointment.findFirst({
+  where: { id: Number(req.params.id), deletedAt: null },
+  include: { doctor: true, patient: true },
+});
 
     if (!appointment) {
       return res.status(404).json({
@@ -127,13 +145,9 @@ export const updateStatus = async (req, res) => {
       });
     }
 
-    // 🔵 Doctor can update ONLY their own appointment
+    // Doctor can update only their own appointments
     if (req.user.role === "DOCTOR") {
-      const doctor = await prisma.doctor.findUnique({
-        where: { userId: req.user.id },
-      });
-
-      if (!doctor || doctor.id !== appointment.doctorId) {
+      if (req.user.doctorId !== appointment.doctorId) {
         return res.status(403).json({
           message: "You can only update your own appointments",
         });
@@ -152,27 +166,61 @@ export const updateStatus = async (req, res) => {
     });
 
     res.json(updated);
+
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
+
 /* ============================
    DELETE APPOINTMENT
 ============================ */
 
+// appointment.controller.js
 export const remove = async (req, res) => {
   try {
-    await deleteAppointment(req.params.id);
-    res.json({ message: "Appointment deleted successfully" });
-  } catch (error) {
-    res.status(400).json({
-      message: error.message,
+    const id = Number(req.params.id);
+
+    if (!id || Number.isNaN(id)) {
+      return res.status(400).json({ message: "Invalid appointment id" });
+    }
+
+    // helpful debug
+    console.log("DELETE APPOINTMENT:", {
+      id,
+      userId: req.user?.id,
+      role: req.user?.role,
     });
+
+    await deleteAppointment(id);
+
+    return res.json({ message: "Appointment deleted successfully" });
+  } catch (error) {
+    console.error("DELETE APPOINTMENT ERROR:", error);
+
+    // Prisma "Record not found"
+    if (error?.code === "P2025") {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    // Prisma foreign key constraint etc (rare for appointment)
+    if (error?.code === "P2003") {
+      return res.status(409).json({ message: "Cannot delete appointment due to relations" });
+    }
+
+    return res.status(500).json({ message: error?.message || "Failed to delete appointment" });
   }
 };
+
+
+/* ============================
+   UPDATE APPOINTMENT
+============================ */
+
 export const update = async (req, res) => {
   try {
+
     const { id } = req.params;
     const { patientId, doctorId, dateTime, notes } = req.body;
 
@@ -190,15 +238,18 @@ export const update = async (req, res) => {
       html: `
         <h2>Appointment Updated</h2>
         <p>Hello ${updated.patient.firstName},</p>
-        <p>Your appointment with Dr. ${updated.doctor.firstName}
-        on ${new Date(updated.dateTime).toLocaleString()}
-        has been updated.</p>
+        <p>
+          Your appointment with Dr. ${updated.doctor.firstName}
+          on ${new Date(updated.dateTime).toLocaleString()}
+          has been updated.
+        </p>
         <br/>
         <p>Clinic Team</p>
       `,
     });
 
     res.json(updated);
+
   } catch (error) {
     console.error(error);
     res.status(400).json({

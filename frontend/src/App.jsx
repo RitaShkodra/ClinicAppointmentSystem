@@ -6,7 +6,7 @@ import Layout from "./components/layout";
 import Patients from "./pages/patients";
 import Doctors from "./pages/doctors";
 import Appointments from "./pages/appointments";
-
+import Profile from "./pages/profile";
 
 function App() {
   return (
@@ -25,38 +25,48 @@ function App() {
       />
 
       <Route
-  path="/patients"
-  element={
-    <ProtectedRoute allowedRoles={["ADMIN", "STAFF"]}>
-      <Layout>
-        <Patients />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
+        path="/patients"
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN", "RECEPTIONIST", "DOCTOR"]}>
+            <Layout>
+              <Patients />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
 
-<Route
-  path="/doctors"
-  element={
-    <ProtectedRoute allowedRoles={["ADMIN"]}>
-      <Layout>
-        <Doctors />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
+      <Route
+        path="/doctors"
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT"]}>
+            <Layout>
+              <Doctors />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
 
-<Route
-  path="/appointments"
-  element={
-    <ProtectedRoute allowedRoles={["ADMIN", "STAFF"]}>
-      <Layout>
-        <Appointments />
-      </Layout>
-    </ProtectedRoute>
-  }
-/>
+      <Route
+        path="/appointments"
+        element={
+          <ProtectedRoute allowedRoles={["ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT"]}>
+            <Layout>
+              <Appointments />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
 
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Profile />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
     </Routes>
   );
 }

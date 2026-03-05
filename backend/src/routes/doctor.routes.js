@@ -6,18 +6,60 @@ import {
   update,
   remove,
 } from "../controllers/doctor.controller.js";
+
 import { authMiddleware } from "../middlewares/auth.middleware.js";
 import { authorizeRoles } from "../middlewares/role.middleware.js";
 
 const router = express.Router();
 
-// Only ADMIN can create or delete doctors
-router.post("/", authMiddleware, authorizeRoles("ADMIN"), create);
-router.delete("/:id", authMiddleware, authorizeRoles("ADMIN"), remove);
+/* CREATE DOCTOR
+ADMIN ONLY
+*/
+router.post(
+  "/",
+  authMiddleware,
+  authorizeRoles("ADMIN"),
+  create
+);
 
-// ADMIN and STAFF can view and update doctors
-router.get("/", authMiddleware, authorizeRoles("ADMIN", "STAFF"), getAll);
-router.get("/:id", authMiddleware, authorizeRoles("ADMIN", "STAFF"), getOne);
-router.put("/:id", authMiddleware, authorizeRoles("ADMIN", "STAFF"), update);
+/* GET ALL DOCTORS
+EVERY ROLE CAN VIEW DOCTORS
+*/
+router.get(
+  "/",
+  authMiddleware,
+  authorizeRoles("ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT"),
+  getAll
+);
+
+/* GET ONE DOCTOR
+EVERY ROLE CAN VIEW
+*/
+router.get(
+  "/:id",
+  authMiddleware,
+  authorizeRoles("ADMIN", "RECEPTIONIST", "DOCTOR", "PATIENT"),
+  getOne
+);
+
+/* UPDATE DOCTOR
+ADMIN + RECEPTIONIST
+*/
+router.put(
+  "/:id",
+  authMiddleware,
+  authorizeRoles("ADMIN", "RECEPTIONIST"),
+  update
+);
+
+/* DELETE DOCTOR
+ADMIN ONLY
+*/
+router.delete(
+  "/:id",
+  authMiddleware,
+  authorizeRoles("ADMIN"),
+  remove
+);
 
 export default router;
