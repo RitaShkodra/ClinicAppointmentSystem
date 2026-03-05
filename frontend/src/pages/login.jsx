@@ -26,14 +26,13 @@ function Login() {
 
 login(res.data);
 
-if (res.data.forcePasswordChange) {
+const user = res.data.user || res.data;
+if (user.forcePasswordChange) {
   navigate("/profile");
+} else if (user.role === "PATIENT") {
+  navigate("/appointments");
 } else {
-  if (res.data.role === "PATIENT") {
-    navigate("/appointments");
-  } else {
-    navigate("/dashboard");
-  }
+  navigate("/dashboard");
 }
     } catch (err) {
       setError("Invalid email or password");

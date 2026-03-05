@@ -14,7 +14,8 @@ function Doctors() {
   const canViewDoctors =
     user?.role === "ADMIN" ||
     user?.role === "RECEPTIONIST" ||
-    user?.role === "DOCTOR";
+    user?.role === "DOCTOR" ||
+    user?.role === "PATIENT";
 
   const canManageDoctors =
     user?.role === "ADMIN" || user?.role === "RECEPTIONIST";

@@ -11,7 +11,8 @@ function ProtectedRoute({ children, allowedRoles }) {
    
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/dashboard" replace />;
+    const fallback = user.role === "PATIENT" ? "/appointments" : "/dashboard";
+    return <Navigate to={fallback} replace />;
   }
   if (user?.forcePasswordChange && location.pathname !== "/change-password") {
   return <Navigate to="/change-password" />;
