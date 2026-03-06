@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import prisma from "../prisma.js";
 import bcrypt from "bcryptjs";
+import { config } from "../config.js";
 
 /* =========================
    REGISTER
@@ -54,42 +55,50 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    console.log("LOGIN ATTEMPT:", email, password);
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
 
     const user = await prisma.user.findUnique({
       where: { email },
     });
 
-    console.log("USER FOUND:", user);
-
     if (!user || user.deletedAt) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    console.log("HASH IN DB:", user.password);
-
     const isMatch = await bcrypt.compare(password, user.password);
-
-    console.log("PASSWORD MATCH:", isMatch);
-
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const accessToken = jwt.sign(
-{
-  id: user.id,
-  role: user.role,
-  email: user.email,
-  doctorId: user.doctorId,
-  patientId: user.patientId
-},
-process.env.JWT_SECRET,
-{ expiresIn: "1h" }
-);
+      {
+        id: user.id,
+        role: user.role,
+        email: user.email,
+        doctorId: user.doctorId,
+        patientId: user.patientId,
+      },
+      config.jwtSecret,
+      { expiresIn: "1h" }
+    );
+
+    const refreshToken = jwt.sign(
+      { userId: user.id },
+      config.jwtRefreshSecret,
+      { expiresIn: "7d" }
+    );
+
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+    await prisma.refreshToken.create({
+      data: { token: refreshToken, userId: user.id, expiresAt },
+    });
 
     return res.json({
       accessToken,
+      refreshToken,
       user: {
         id: user.id,
         name: user.name,
@@ -98,7 +107,6 @@ process.env.JWT_SECRET,
         forcePasswordChange: user.forcePasswordChange,
       },
     });
-
   } catch (error) {
     console.error("Login error:", error);
     return res.status(500).json({ message: "Server error during login" });
@@ -106,31 +114,85 @@ process.env.JWT_SECRET,
 };
 
 /* =========================
-   REFRESH TOKEN (simple version)
+   REFRESH TOKEN
+   Client sends refreshToken in body; we verify it, optionally rotate it, return new accessToken (and new refreshToken).
 ========================= */
 export const refresh = async (req, res) => {
   try {
-    const { user } = req;
+    const { refreshToken: tokenFromBody } = req.body;
+    if (!tokenFromBody) {
+      return res.status(401).json({ message: "Refresh token required" });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(tokenFromBody, config.jwtRefreshSecret);
+    } catch {
+      return res.status(401).json({ message: "Invalid or expired refresh token" });
+    }
+
+    const userId = decoded.userId;
+    const stored = await prisma.refreshToken.findFirst({
+      where: { token: tokenFromBody, userId },
+    });
+    if (!stored || stored.expiresAt < new Date()) {
+      if (stored) await prisma.refreshToken.delete({ where: { id: stored.id } }).catch(() => {});
+      return res.status(401).json({ message: "Invalid or expired refresh token" });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!user || user.deletedAt) {
+      await prisma.refreshToken.delete({ where: { id: stored.id } }).catch(() => {});
+      return res.status(401).json({ message: "User not found" });
+    }
 
     const newAccessToken = jwt.sign(
       {
         id: user.id,
         role: user.role,
         email: user.email,
+        doctorId: user.doctorId,
+        patientId: user.patientId,
       },
-      process.env.JWT_SECRET,
-      { expiresIn: "1h" },
+      config.jwtSecret,
+      { expiresIn: "1h" }
     );
 
-    return res.json({ accessToken: newAccessToken });
+    const newRefreshToken = jwt.sign(
+      { userId: user.id },
+      config.jwtRefreshSecret,
+      { expiresIn: "7d" }
+    );
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await prisma.refreshToken.delete({ where: { id: stored.id } });
+    await prisma.refreshToken.create({
+      data: { token: newRefreshToken, userId: user.id, expiresAt },
+    });
+
+    return res.json({
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    });
   } catch (error) {
+    console.error("Refresh error:", error);
     return res.status(500).json({ message: "Refresh failed" });
   }
 };
 
 /* =========================
    LOGOUT
+   Client can send refreshToken in body to invalidate it server-side.
 ========================= */
 export const logout = async (req, res) => {
-  return res.json({ message: "Logged out successfully" });
+  try {
+    const { refreshToken: tokenFromBody } = req.body;
+    if (tokenFromBody) {
+      await prisma.refreshToken.deleteMany({ where: { token: tokenFromBody } });
+    }
+    return res.json({ message: "Logged out successfully" });
+  } catch (error) {
+    return res.json({ message: "Logged out successfully" });
+  }
 };

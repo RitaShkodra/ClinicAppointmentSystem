@@ -17,10 +17,6 @@ export const authorizeRoles = (...allowedRoles) => {
 
       const userRole = req.user.role;
 
-      // Debug (TEMPORARY)
-      console.log("USER ROLE:", userRole);
-      console.log("ALLOWED ROLES:", allowedRoles);
-
       // Validate role
       if (!userRole) {
         return res.status(403).json({

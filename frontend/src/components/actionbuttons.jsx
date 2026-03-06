@@ -1,12 +1,14 @@
-function ActionButtons({ onEdit, onDelete, showDelete }) {
+function ActionButtons({ onEdit, onDelete, showDelete, showEdit = true }) {
   return (
     <div className="flex gap-2">
-      <button
-        onClick={onEdit}
-        className="px-3 py-1 text-xs bg-teal-100 text-teal-700 rounded-md hover:bg-teal-200 transition"
-      >
-        Edit
-      </button>
+      {showEdit && (
+        <button
+          onClick={onEdit}
+          className="px-3 py-1 text-xs bg-teal-100 text-teal-700 rounded-md hover:bg-teal-200 transition"
+        >
+          Edit
+        </button>
+      )}
 
       {showDelete && (
         <button
